@@ -1,0 +1,55 @@
+- name: Add Tailscale apt repository
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: deb
+    uris: https://pkgs.tailscale.com/stable/ubuntu
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: main
+    signed_by: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+  register: tailscale_repo
+
+# A dry run only reports the repository as added, so the package and its
+# service cannot exist yet. Skip them rather than fail.
+- name: Note whether this dry run can see the package
+  ansible.builtin.set_fact:
+    tailscale_repo_pending: "{{ ansible_check_mode and tailscale_repo is changed }}"
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+  when: not tailscale_repo_pending
+
+- name: Keep tailscaled running
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    state: started
+    enabled: true
+  when: not tailscale_repo_pending
+
+- name: Read Tailscale status
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Decide whether the host still needs to join
+  ansible.builtin.set_fact:
+    tailscale_needs_join: >-
+      {{ (tailscale_status.stdout | default('{}', true) | from_json).BackendState | default('') != 'Running' }}
+
+- name: Require an auth key to join
+  ansible.builtin.assert:
+    that: tailscale_authkey | length > 0
+    fail_msg: >-
+      {{ inventory_hostname }} is not on the tailnet yet. Create an auth key in the Tailscale
+      admin console and run once with TAILSCALE_AUTHKEY=tskey-auth-... in the environment.
+  when: tailscale_needs_join and not ansible_check_mode
+
+- name: Join the tailnet
+  ansible.builtin.command: >-
+    tailscale up --auth-key={{ tailscale_authkey }} --hostname={{ tailscale_hostname }}
+  no_log: true
+  when: tailscale_needs_join
