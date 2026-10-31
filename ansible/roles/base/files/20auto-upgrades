@@ -1,0 +1,4 @@
+// Managed by Ansible (machinesdancing/ansible/roles/base). Do not edit on the host.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";
