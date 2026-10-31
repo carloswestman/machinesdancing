@@ -1,0 +1,6 @@
+admin_user: carlos
+
+# The only public keys allowed to log in as admin_user. Managed exclusively:
+# any key on the host that is not listed here is removed.
+admin_ssh_keys:
+  - keys/carlos-laptop.pub

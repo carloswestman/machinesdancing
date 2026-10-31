@@ -1,0 +1,5 @@
+- name: Configure VM hosts
+  hosts: vm_hosts
+  become: true
+  roles:
+    - access

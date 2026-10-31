@@ -1,0 +1,12 @@
+all:
+  vars:
+    ansible_user: carlos
+  children:
+    vm_hosts:
+      vars:
+        # Ubuntu 26.04 defaults to sudo-rs, whose password prompt Ansible does
+        # not recognize. Classic sudo is still installed as sudo.ws.
+        ansible_become_exe: sudo.ws
+      hosts:
+        hemlock:
+          ansible_host: hemlock
