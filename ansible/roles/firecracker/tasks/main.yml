@@ -1,0 +1,88 @@
+- name: Check for KVM
+  ansible.builtin.stat:
+    path: /dev/kvm
+  register: firecracker_kvm
+
+- name: Require KVM
+  ansible.builtin.assert:
+    that: firecracker_kvm.stat.exists and firecracker_kvm.stat.ischr
+    fail_msg: /dev/kvm is missing. Enable VT-x (Intel) or AMD-V in the BIOS.
+    quiet: true
+
+- name: Set release paths
+  ansible.builtin.set_fact:
+    firecracker_release_dir: "{{ firecracker_install_root }}/{{ firecracker_version }}"
+    firecracker_release_name: "release-{{ firecracker_version }}-{{ firecracker_arch }}"
+
+- name: Create release directory
+  ansible.builtin.file:
+    path: "{{ firecracker_release_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download pinned release
+  ansible.builtin.get_url:
+    url: "https://github.com/firecracker-microvm/firecracker/releases/download/{{ firecracker_version }}/firecracker-{{ firecracker_version }}-{{ firecracker_arch }}.tgz"
+    dest: "{{ firecracker_release_dir }}/firecracker.tgz"
+    checksum: "sha256:{{ firecracker_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: firecracker_download
+
+# A dry run only reports the download, so there is nothing to unpack, link
+# or run yet.
+- name: Note whether this dry run can see the release
+  ansible.builtin.set_fact:
+    firecracker_pending: "{{ ansible_check_mode and firecracker_download is changed }}"
+
+- name: Unpack release
+  ansible.builtin.unarchive:
+    src: "{{ firecracker_release_dir }}/firecracker.tgz"
+    dest: "{{ firecracker_release_dir }}"
+    remote_src: true
+    creates: "{{ firecracker_release_dir }}/{{ firecracker_release_name }}/firecracker-{{ firecracker_version }}-{{ firecracker_arch }}"
+  when: not firecracker_pending
+
+- name: Link binaries into /usr/local/bin
+  ansible.builtin.file:
+    src: "{{ firecracker_release_dir }}/{{ firecracker_release_name }}/{{ item }}-{{ firecracker_version }}-{{ firecracker_arch }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+  loop:
+    - firecracker
+    - jailer
+  when: not firecracker_pending
+
+- name: Create VM storage directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ firecracker_images_dir }}"
+    - "{{ firecracker_jailer_root }}"
+
+- name: Read installed versions
+  ansible.builtin.command: "{{ item }} --version"
+  loop:
+    - firecracker
+    - jailer
+  register: firecracker_versions
+  changed_when: false
+  check_mode: false
+  when: not firecracker_pending
+
+- name: Require the pinned version
+  ansible.builtin.assert:
+    that: (firecracker_version | regex_replace('^v', '')) in item.stdout
+    fail_msg: "{{ item.item }} reports '{{ item.stdout }}', expected {{ firecracker_version }}."
+    quiet: true
+  loop: "{{ firecracker_versions.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not firecracker_pending

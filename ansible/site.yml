@@ -6,3 +6,4 @@
     - base
     - tailscale
     - vm_storage
+    - firecracker
