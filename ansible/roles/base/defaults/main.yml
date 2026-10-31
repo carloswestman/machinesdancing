@@ -1,0 +1,15 @@
+# UTC keeps logs and timestamps comparable across hosts and VMs.
+base_timezone: Etc/UTC
+
+base_packages:
+  - chrony
+  - unattended-upgrades
+  - curl
+  - git
+  - jq
+  - htop
+
+# Reboot automatically when an unattended upgrade needs it. Off by default:
+# a reboot kills every running VM.
+base_auto_reboot: false
+base_auto_reboot_time: "04:00"

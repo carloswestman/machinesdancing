@@ -1,0 +1,20 @@
+# Full package upgrade, run on demand. Kept out of site.yml so applying
+# configuration never upgrades packages as a side effect.
+- name: Upgrade packages on VM hosts
+  hosts: vm_hosts
+  become: true
+  tasks:
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: true
+        autoremove: true
+
+    - name: Check whether a reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Report reboot status
+      ansible.builtin.debug:
+        msg: "{{ 'Reboot required. Run: ansible vm_hosts -K -b -m reboot' if reboot_required.stat.exists else 'No reboot required.' }}"

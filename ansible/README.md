@@ -29,7 +29,11 @@ From this directory:
 ansible-galaxy collection install -r requirements.yml   # once
 ansible-playbook site.yml -K --check --diff             # dry run: show what would change
 ansible-playbook site.yml -K                            # apply
+ansible-playbook upgrade.yml -K                         # upgrade all packages, report if a reboot is needed
 ```
+
+`site.yml` only applies configuration. It never upgrades packages; `upgrade.yml` does that, on
+demand. Security updates also install automatically every day (unattended-upgrades).
 
 `-K` prompts for the `sudo` password.
 
@@ -38,3 +42,4 @@ ansible-playbook site.yml -K                            # apply
 | Role | Does |
 |---|---|
 | `access` | Authorizes the admin SSH keys (exclusively), turns off password and root login. |
+| `base` | Hostname, timezone (UTC), base packages, chrony time sync, daily unattended security upgrades (no automatic reboot by default). |
