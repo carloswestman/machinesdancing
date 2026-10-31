@@ -1,0 +1,7 @@
+# Storage for VM images, per-VM disks and snapshots. XFS with reflinks makes
+# a per-VM disk an instant copy-on-write copy of its base image.
+vm_storage_vg: ubuntu-vg
+vm_storage_lv: vms
+# Can grow by raising this and re-running. Never shrinks.
+vm_storage_size: 80g
+vm_storage_mount: /var/lib/vms

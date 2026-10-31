@@ -32,9 +32,15 @@ tools build on its interface.
 | Hypervisor | Firecracker on KVM | Boots in milliseconds, small attack surface, written in Rust. |
 | Process isolation | Firecracker jailer | Wraps each VM process in a chroot, cgroups, seccomp filters and its own user. |
 | Language | Rust (tokio, axum) | Same language as Firecracker; its API is plain HTTP over a Unix socket, so no SDK is needed. |
-| Disks | Read-only base image plus a copy-on-write layer per VM | Spawning never copies the base image. |
+| Disks | XFS with reflinks at `/var/lib/vms`: a per-VM disk is a `cp --reflink` of its base image | Instant, no block copy. Plain files fit the jailer's chroot, snapshots share the same filesystem, and a full disk fails cleanly instead of corrupting like an overcommitted thin pool. |
 | Host-guest channel | vsock | Needs no network. The only path in or out unless networking is enabled. |
 | Host provisioning | Ansible, run from the Mac over SSH | Declarative and idempotent. Ansible never creates or destroys VMs. |
+
+## Host
+
+hemlock: HP EliteDesk 800, i5-10500T (6 cores, 12 threads), 16 GB RAM, 238 GB NVMe, Ubuntu
+Server 26.04, provisioned by `ansible/`. After the host's own needs, roughly 12 GB of RAM is left
+for VMs, which sets how many can run at once.
 
 ## Interfaces
 
@@ -62,7 +68,5 @@ guest answers on vsock.
 ## Open questions
 
 1. Tool name.
-2. Host hardware: CPU generation, RAM, disk. These set how many VMs can run at once.
-3. Remote access to the daemon: over SSH or Tailscale only, or a network API with authentication?
-4. Copy-on-write backend: device-mapper snapshots, or reflinks on XFS or btrfs?
-5. How a VM signals it is ready: a tiny agent inside the guest, or a plain vsock handshake from init?
+2. Remote access to the daemon: over SSH or Tailscale only, or a network API with authentication?
+3. How a VM signals it is ready: a tiny agent inside the guest, or a plain vsock handshake from init?
