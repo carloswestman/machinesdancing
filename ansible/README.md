@@ -74,3 +74,4 @@ The host joins under its inventory name. Tailscale SSH is not enabled: SSH acces
 | `access` | Authorizes the admin SSH keys (exclusively), turns off password and root login. |
 | `base` | Hostname, timezone (UTC), base packages, chrony time sync, daily unattended security upgrades (no automatic reboot by default). |
 | `tailscale` | Installs Tailscale from its official apt repository and joins the host to the tailnet under its inventory name. |
+| `vm_storage` | An 80 GB logical volume formatted XFS with reflinks, mounted at `/var/lib/vms`, for VM images, per-VM disks and snapshots. Fails if reflinks are unavailable. |
