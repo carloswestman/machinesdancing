@@ -1,0 +1,6 @@
+tailscale_hostname: "{{ inventory_hostname }}"
+
+# Only needed the first time a host joins the tailnet. Never commit it:
+# pass it through the environment for that one run.
+#   TAILSCALE_AUTHKEY=tskey-auth-... ansible-playbook site.yml -K
+tailscale_authkey: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTHKEY') }}"
