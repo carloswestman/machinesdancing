@@ -1,0 +1,10 @@
+# Guest kernel: a prebuilt one from Firecracker's CI, built with the config
+# Firecracker tests against. Pinned by its CI build and checksum. To upgrade,
+# pick a build from the CI bucket (see docs/jete.md) and change all three
+# values together.
+guest_kernel_version: 6.18.56
+guest_kernel_ci_build: 20261028-84df49062576-0
+guest_kernel_sha256: a00c1f68304e83ae4e0b5afe88972ad23fda52ed1a40335611aa18faa95d1b10
+
+guest_kernels_dir: /var/lib/vms/images/kernels
+guest_rootfs_dir: /var/lib/vms/images/rootfs

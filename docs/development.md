@@ -80,6 +80,12 @@ cargo fmt                   # format
 cargo test                  # compile on the Mac, run on hemlock
 ```
 
+Building the guest root filesystem (on hemlock, about 30 seconds; prints the new image's path):
+
+```bash
+scripts/build-rootfs
+```
+
 Changing hemlock itself:
 
 ```bash

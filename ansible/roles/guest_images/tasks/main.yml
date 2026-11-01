@@ -1,0 +1,43 @@
+# Builds guest root filesystems (images/rootfs/build).
+- name: Install the rootfs build tools
+  ansible.builtin.apt:
+    name:
+      - mmdebstrap
+      - e2fsprogs
+    state: present
+
+- name: Create image directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ guest_kernels_dir }}"
+    - "{{ guest_rootfs_dir }}"
+  register: guest_images_dirs
+
+# A dry run only reports what it would create, so a new host has no
+# directory to download the kernel into yet.
+- name: Note whether this dry run can see the kernel directory
+  ansible.builtin.set_fact:
+    guest_images_pending: "{{ ansible_check_mode and guest_images_dirs is changed }}"
+
+- name: Download pinned guest kernel
+  ansible.builtin.get_url:
+    url: "https://s3.amazonaws.com/spec.ccfc.min/firecracker-ci/{{ guest_kernel_ci_build }}/x86_64/vmlinux-{{ guest_kernel_version }}"
+    dest: "{{ guest_kernels_dir }}/vmlinux-{{ guest_kernel_version }}"
+    checksum: "sha256:{{ guest_kernel_sha256 }}"
+    owner: root
+    group: root
+    mode: "0444"
+  when: not guest_images_pending
+
+# jete's default kernel. Versions install side by side, like Firecracker's.
+- name: Point vmlinux at the pinned kernel
+  ansible.builtin.file:
+    src: "vmlinux-{{ guest_kernel_version }}"
+    dest: "{{ guest_kernels_dir }}/vmlinux"
+    state: link
+  when: not guest_images_pending
