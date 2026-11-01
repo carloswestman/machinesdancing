@@ -1,8 +1,8 @@
 # jete — design
 
 jete (from *jeté*, a ballet leap) is the first tool: a VM manager. It creates, runs and destroys
-lightweight VMs fast, on one Linux host with KVM. It is general-purpose: it knows nothing about agents, roles, messages or GitHub. Higher-level
-tools build on its interface.
+lightweight VMs fast, on one Linux host with KVM. It is general-purpose: it knows nothing about
+agents, roles, messages or GitHub. Higher-level tools build on its interface.
 
 ## Scope
 
