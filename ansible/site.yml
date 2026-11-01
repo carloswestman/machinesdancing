@@ -7,4 +7,3 @@
     - tailscale
     - vm_storage
     - firecracker
-    - rust

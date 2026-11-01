@@ -76,4 +76,3 @@ The host joins under its inventory name. Tailscale SSH is not enabled: SSH acces
 | `tailscale` | Installs Tailscale from its official apt repository and joins the host to the tailnet under its inventory name. |
 | `vm_storage` | An 80 GB logical volume formatted XFS with reflinks, mounted at `/var/lib/vms`, for VM images, per-VM disks and snapshots. Fails if reflinks are unavailable. |
 | `firecracker` | Requires KVM, installs the pinned Firecracker release (checksum-verified) under `/opt/firecracker/<version>`, links `firecracker` and `jailer` into `/usr/local/bin`, creates `/var/lib/vms/images` and `/var/lib/vms/jailer`. |
-| `rust` | Installs `rustup` and build tools, and the pinned Rust toolchain (with clippy, rustfmt and the musl target) for the admin user only. jete is built on the host. |

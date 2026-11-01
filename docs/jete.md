@@ -73,8 +73,8 @@ guest answers on vsock.
 | Root filesystem | A minimal Ubuntu 26.04 image as an ext4 file under `/var/lib/vms/images/`, built on hemlock by a script in this repo. |
 | Guest agent | `jete-agent`: a small static (musl) Rust binary started at boot. It listens on a fixed vsock port and does three things: answers when the guest is ready (the time-to-ready signal), runs a command and returns stdout, stderr and the exit code, and opens an interactive shell. It knows nothing about agents or messages; higher layers use other vsock ports. |
 | Privileges | `jete` runs under `sudo` in M1, because the jailer starts as root (chroot, device nodes, cgroups) before dropping each VM to an unprivileged user. The daemon and its user model come in M3. |
-| Crates | One Cargo workspace: `crates/jete` (library), `crates/jete-cli` (the `jete` binary), `crates/jete-agent` (guest agent). The toolchain is pinned in `rust-toolchain.toml`, matching the `rust` Ansible role. |
-| Build and test | On hemlock, natively: it is the target platform and the only machine with KVM. Code is edited in the repo, synced to a working copy on hemlock, and built and tested there over SSH. hemlock needs no GitHub credentials. Release builds in CI with pinned deployment by Ansible come later. |
+| Crates | One Cargo workspace: `crates/jete` (library), `crates/jete-cli` (the `jete` binary), `crates/jete-agent` (guest agent). The toolchain and the Linux target are pinned in `rust-toolchain.toml`. |
+| Build and test | Build on the Mac, test on hemlock. The Mac (Apple M4) compiles much faster, and hemlock carries no compilers. Everything targets `x86_64-unknown-linux-musl` by default (set in `.cargo/config.toml`), producing static Linux binaries. A cargo *runner* copies each test binary to hemlock and runs it there, because booting VMs needs KVM. See [development.md](development.md). Release builds in CI with pinned deployment by Ansible come later. |
 
 **M1 is done when**, on hemlock:
 
