@@ -47,20 +47,34 @@ works without a password; see [`ansible/README.md`](../ansible/README.md)).
   so building for macOS is neither possible nor useful.
 - **Static binaries.** musl links everything in, so a binary runs on hemlock and inside any guest
   image as-is.
-- **Tests run on hemlock.** `.cargo/config.toml` sets a cargo *runner*: a script in the repo that
-  copies each compiled test or binary to hemlock over SSH and runs it there, streaming the output
-  back. `cargo test` and `cargo run` on the Mac therefore execute on hemlock.
+- **Tests run on hemlock.** `.cargo/config.toml` sets [`scripts/hemlock-run`](../scripts/hemlock-run)
+  as the cargo *runner*. It copies each compiled test or binary to hemlock over SSH, runs it there
+  with the same arguments, streams the output back, passes the exit code through, and deletes the
+  binary. `cargo test` and `cargo run` on the Mac therefore execute on hemlock.
 - **hemlock needs no GitHub access.** Binaries are copied over SSH. Nothing is cloned there.
 
-> The Cargo workspace, `rust-toolchain.toml`, `.cargo/config.toml` and the runner script arrive with
-> the first M1 pull request. Until then, steps 1, 2 and 4 are all that apply.
+The smoke test `crates/jete/tests/host.rs` checks that tests really run on a Linux host with
+`/dev/kvm`. If it fails, the runner is not reaching hemlock.
+
+### Runner settings
+
+| Variable | Default | Effect |
+|---|---|---|
+| `JETE_HOST` | `hemlock` | SSH host the runner uses. |
+| `JETE_RUN_SUDO` | unset | Set to `1` to run the binary under `sudo` on the host, for code that needs root (the jailer). |
+| `RUST_BACKTRACE`, `RUST_LOG`, `RUST_TEST_THREADS` | | Forwarded to the host when set. |
+
+The runner keeps one SSH connection open for 60 seconds, so a test run with many binaries does not
+reconnect for each one. An interactive terminal is passed through when you have one, so
+`cargo run --bin jete -- shell <id>` will work once it exists.
 
 ## Everyday commands
 
-From the repo root, once the workspace exists:
+From the repo root:
 
 ```bash
 cargo build                 # static Linux binaries in target/x86_64-unknown-linux-musl/
+cargo run --bin jete        # build on the Mac, run on hemlock
 cargo clippy                # lint
 cargo fmt                   # format
 cargo test                  # compile on the Mac, run on hemlock

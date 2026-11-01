@@ -1,0 +1,11 @@
+# Everything builds for Linux by default: jete is Linux-only (KVM, the jailer,
+# vsock, cgroups). musl links statically, so binaries run on the host and
+# inside any guest image as-is.
+[build]
+target = "x86_64-unknown-linux-musl"
+
+[target.x86_64-unknown-linux-musl]
+# rust-lld ships with Rust, so no cross toolchain is needed on the Mac.
+linker = "rust-lld"
+# `cargo test` and `cargo run` execute the binary on hemlock, which has KVM.
+runner = "scripts/hemlock-run"

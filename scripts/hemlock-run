@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# hemlock-run: cargo runner that executes a Linux binary on the KVM host.
+#
+# Cargo calls this with the path of a freshly built binary (a test, or a
+# `cargo run` target) followed by its arguments, because .cargo/config.toml
+# sets it as the runner for x86_64-unknown-linux-musl. The binary is copied
+# to the host over SSH, run there with the same arguments, then removed.
+# Output streams back and the exit code is passed through, so `cargo test`
+# on the Mac reports results from the host.
+#
+# Environment:
+#   JETE_HOST       SSH host to run on (default: hemlock)
+#   JETE_RUN_SUDO   set to 1 to run the binary under sudo on the host
+#   RUST_BACKTRACE, RUST_LOG, RUST_TEST_THREADS are forwarded if set.
+
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: hemlock-run <binary> [args...]" >&2
+  exit 2
+fi
+
+host=${JETE_HOST:-hemlock}
+binary=$1
+shift
+name=$(basename "$binary")
+remote_dir=.cache/jete-run
+
+# Reuse one SSH connection across the many calls of a test run.
+ssh_opts=(-o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-%r@%h:%p" -o ControlPersist=60)
+
+ssh "${ssh_opts[@]}" "$host" "mkdir -p $remote_dir"
+scp -q "${ssh_opts[@]}" "$binary" "$host:$remote_dir/$name"
+
+env_prefix=""
+for var in RUST_BACKTRACE RUST_LOG RUST_TEST_THREADS; do
+  if [[ -n ${!var:-} ]]; then
+    env_prefix+="$var=$(printf '%q' "${!var}") "
+  fi
+done
+
+sudo_prefix=""
+if [[ ${JETE_RUN_SUDO:-0} == 1 ]]; then
+  sudo_prefix="sudo "
+fi
+
+args=""
+if [[ $# -gt 0 ]]; then
+  args=$(printf '%q ' "$@")
+fi
+
+# A terminal on our side gets one on the host too, for interactive commands.
+# (A plain string, not an array: macOS bash 3.2 treats an empty array as
+# unset under `set -u`.)
+tty_opt=-T
+if [[ -t 0 && -t 1 ]]; then
+  tty_opt=-t
+fi
+
+set +e
+ssh "${ssh_opts[@]}" "$tty_opt" "$host" \
+  "cd $remote_dir && ${sudo_prefix}env ${env_prefix}./$(printf '%q' "$name") $args; rc=\$?; rm -f ./$(printf '%q' "$name"); exit \$rc"
+rc=$?
+set -e
+exit $rc
