@@ -72,6 +72,7 @@ The host joins under its inventory name. Tailscale SSH is not enabled: SSH acces
 | Role | Does |
 |---|---|
 | `access` | Authorizes the admin SSH keys (exclusively), turns off password and root login. |
-| `base` | Hostname, timezone (UTC), base packages, chrony time sync, daily unattended security upgrades (no automatic reboot by default). |
+| `base` | Hostname, timezone (UTC), base packages, chrony time sync, daily unattended security upgrades (no automatic reboot by default), journal capped at 2 GB. |
 | `tailscale` | Installs Tailscale from its official apt repository and joins the host to the tailnet under its inventory name. |
 | `vm_storage` | An 80 GB logical volume formatted XFS with reflinks, mounted at `/var/lib/vms`, for VM images, per-VM disks and snapshots. Fails if reflinks are unavailable. |
+| `firecracker` | Requires KVM, installs the pinned Firecracker release (checksum-verified) under `/opt/firecracker/<version>`, links `firecracker` and `jailer` into `/usr/local/bin`, creates `/var/lib/vms/images` and `/var/lib/vms/jailer`. |

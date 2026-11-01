@@ -36,3 +36,23 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Create journald drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Cap journal size on disk
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/00-size.conf
+    content: |
+      # Managed by Ansible (machinesdancing/ansible/roles/base). Do not edit on the host.
+      [Journal]
+      SystemMaxUse={{ base_journal_max_use }}
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart journald

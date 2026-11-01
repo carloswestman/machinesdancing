@@ -13,3 +13,6 @@ base_packages:
 # a reboot kills every running VM.
 base_auto_reboot: false
 base_auto_reboot_time: "04:00"
+
+# Upper bound for the systemd journal on disk, so logs cannot fill root.
+base_journal_max_use: 2G

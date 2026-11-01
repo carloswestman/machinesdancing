@@ -1,0 +1,13 @@
+# Pinned release. To upgrade, change both values together: the checksum is
+# the SHA-256 of the release tarball, published next to it as .sha256.txt.
+firecracker_version: v1.17.0
+firecracker_sha256: 06094a1108ae9e82aa4c23a775aa92758f53f1175d422270d9d6162cb9ade558
+firecracker_arch: x86_64
+
+# Each version installs side by side; /usr/local/bin points at the pinned one.
+firecracker_install_root: /opt/firecracker
+
+# Both live on the reflink-enabled VM storage, so per-VM disks can be
+# reflinked from images straight into a VM's jail.
+firecracker_images_dir: /var/lib/vms/images
+firecracker_jailer_root: /var/lib/vms/jailer
