@@ -27,15 +27,16 @@ From this directory:
 
 ```bash
 ansible-galaxy collection install -r requirements.yml   # once
-ansible-playbook site.yml -K --check --diff             # dry run: show what would change
-ansible-playbook site.yml -K                            # apply
-ansible-playbook upgrade.yml -K                         # upgrade all packages, report if a reboot is needed
+ansible-playbook site.yml --check --diff                # dry run: show what would change
+ansible-playbook site.yml                               # apply
+ansible-playbook upgrade.yml                            # upgrade all packages, report if a reboot is needed
 ```
 
 `site.yml` only applies configuration. It never upgrades packages; `upgrade.yml` does that, on
 demand. Security updates also install automatically every day (unattended-upgrades).
 
-`-K` prompts for the `sudo` password.
+The `access` role gives the admin user passwordless `sudo`, so runs need no password. On a new
+host, until the first run has applied it, add `-K` to be prompted for the `sudo` password.
 
 ## Environment variables
 
@@ -71,7 +72,7 @@ The host joins under its inventory name. Tailscale SSH is not enabled: SSH acces
 
 | Role | Does |
 |---|---|
-| `access` | Authorizes the admin SSH keys (exclusively), turns off password and root login. |
+| `access` | Authorizes the admin SSH keys (exclusively), turns off password and root login, gives the admin user passwordless `sudo` (`access_passwordless_sudo`). |
 | `base` | Hostname, timezone (UTC), base packages, chrony time sync, daily unattended security upgrades (no automatic reboot by default), journal capped at 2 GB. |
 | `tailscale` | Installs Tailscale from its official apt repository and joins the host to the tailnet under its inventory name. |
 | `vm_storage` | An 80 GB logical volume formatted XFS with reflinks, mounted at `/var/lib/vms`, for VM images, per-VM disks and snapshots. Fails if reflinks are unavailable. |

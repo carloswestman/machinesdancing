@@ -1,0 +1,5 @@
+# Lets admin_user run sudo without a password, so tests and jete can start
+# the jailer (which needs root) unattended. SSH is key-only, so this trades
+# the password prompt for "the admin key is root". Revisit when the jete
+# daemon (M3) takes over the root-only work.
+access_passwordless_sudo: true

@@ -61,7 +61,7 @@ The smoke test `crates/jete/tests/host.rs` checks that tests really run on a Lin
 | Variable | Default | Effect |
 |---|---|---|
 | `JETE_HOST` | `hemlock` | SSH host the runner uses. |
-| `JETE_RUN_SUDO` | unset | Set to `1` to run the binary under `sudo` on the host, for code that needs root (the jailer). |
+| `JETE_RUN_SUDO` | unset | Set to `1` to run the binary under `sudo` on the host, for code that needs root (the jailer). Runs unattended: the admin user has passwordless `sudo` on hemlock. |
 | `RUST_BACKTRACE`, `RUST_LOG`, `RUST_TEST_THREADS` | | Forwarded to the host when set. |
 
 The runner keeps one SSH connection open for 60 seconds, so a test run with many binaries does not
@@ -84,8 +84,8 @@ Changing hemlock itself:
 
 ```bash
 cd ansible
-ansible-playbook site.yml -K --check --diff   # dry run
-ansible-playbook site.yml -K                  # apply
+ansible-playbook site.yml --check --diff   # dry run
+ansible-playbook site.yml                  # apply
 ```
 
 ## Conventions

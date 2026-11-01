@@ -22,3 +22,32 @@
   ansible.builtin.command: /usr/sbin/sshd -t
   changed_when: false
   check_mode: false
+
+# The host has two sudo implementations: `sudo` is sudo-rs, while Ansible
+# becomes root through sudo.ws (see inventory.yml). Both read this file, so
+# both must accept it before it is installed; a file either one rejects
+# would lock that one out.
+- name: Install passwordless sudo for the admin user
+  ansible.builtin.template:
+    src: 90-admin-nopasswd.j2
+    dest: /etc/sudoers.d/90-admin-nopasswd
+    owner: root
+    group: root
+    mode: "0440"
+    validate: sh -c '/usr/sbin/visudo -c -f "$0" && /usr/sbin/visudo.ws -c -f "$0"' %s
+  when: access_passwordless_sudo
+
+- name: Remove passwordless sudo for the admin user
+  ansible.builtin.file:
+    path: /etc/sudoers.d/90-admin-nopasswd
+    state: absent
+  when: not access_passwordless_sudo
+
+# Read-only, so it also runs in check mode.
+- name: Validate full sudoers configuration
+  ansible.builtin.command: "{{ item }} -c"
+  loop:
+    - /usr/sbin/visudo
+    - /usr/sbin/visudo.ws
+  changed_when: false
+  check_mode: false
