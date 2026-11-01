@@ -1,0 +1,43 @@
+- name: Install rustup and build tools
+  ansible.builtin.apt:
+    name:
+      - rustup
+      - build-essential
+      - pkg-config
+    state: present
+
+- name: Set toolchain directory
+  ansible.builtin.set_fact:
+    rust_toolchain_dir: "/home/{{ rust_user }}/.rustup/toolchains/{{ rust_toolchain }}-x86_64-unknown-linux-gnu"
+
+- name: Install the pinned toolchain
+  ansible.builtin.command: >-
+    rustup toolchain install {{ rust_toolchain }} --profile minimal
+    {% for c in rust_components %} --component {{ c }}{% endfor %}
+  args:
+    creates: "{{ rust_toolchain_dir }}/bin/rustc"
+  become: true
+  become_user: "{{ rust_user }}"
+
+- name: Add build targets
+  ansible.builtin.command: rustup target add --toolchain {{ rust_toolchain }} {{ item }}
+  args:
+    creates: "{{ rust_toolchain_dir }}/lib/rustlib/{{ item }}"
+  loop: "{{ rust_targets }}"
+  become: true
+  become_user: "{{ rust_user }}"
+
+- name: Read the default toolchain
+  ansible.builtin.command: rustup default
+  register: rust_default
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: true
+  become_user: "{{ rust_user }}"
+
+- name: Make the pinned toolchain the default
+  ansible.builtin.command: rustup default {{ rust_toolchain }}
+  when: not rust_default.stdout.startswith(rust_toolchain ~ '-')
+  become: true
+  become_user: "{{ rust_user }}"

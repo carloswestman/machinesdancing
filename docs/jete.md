@@ -1,7 +1,7 @@
-# VM manager — design
+# jete — design
 
-The first tool. It creates, runs and destroys lightweight VMs fast, on one Linux host with KVM.
-It is general-purpose: it knows nothing about agents, roles, messages or GitHub. Higher-level
+jete (from *jeté*, a ballet leap) is the first tool: a VM manager. It creates, runs and destroys
+lightweight VMs fast, on one Linux host with KVM. It is general-purpose: it knows nothing about agents, roles, messages or GitHub. Higher-level
 tools build on its interface.
 
 ## Scope
@@ -56,8 +56,8 @@ Three layers. Each is usable on its own:
 
 | | Goal | Done when |
 |---|---|---|
-| M0 | Host bootstrap | An Ansible playbook takes a fresh Ubuntu Server to "can run jailed Firecracker." |
-| M1 | One VM | The CLI boots a jailed VM from a kernel and root filesystem, and the host gets a shell on it over vsock. |
+| M0 ✓ | Host bootstrap | An Ansible playbook takes a fresh Ubuntu Server to "can run jailed Firecracker." |
+| M1 | One VM | `jete` boots a jailed VM from a kernel and root filesystem, and the host runs a command and opens a shell in it over vsock. |
 | M2 | Many VMs | Copy-on-write disks, optional tap device and egress allowlist, list, stop and destroy, with no leftovers after teardown. |
 | M3 | Daemon and API | The daemon owns VM lifecycles; the CLI becomes its client. |
 | M4 | Speed | Snapshot and restore, plus a warm pool. |
@@ -65,8 +65,26 @@ Three layers. Each is usable on its own:
 From M1 on, every milestone reports **time-to-ready**: how long from the create request until the
 guest answers on vsock.
 
+## M1 plan
+
+| Concern | Decision |
+|---|---|
+| Guest kernel | Firecracker CI's prebuilt guest kernel, to boot quickly. Building our own from their recommended config comes later, when we need features it leaves out. Stored under `/var/lib/vms/images/`. |
+| Root filesystem | A minimal Ubuntu 26.04 image as an ext4 file under `/var/lib/vms/images/`, built on hemlock by a script in this repo. |
+| Guest agent | `jete-agent`: a small static (musl) Rust binary started at boot. It listens on a fixed vsock port and does three things: answers when the guest is ready (the time-to-ready signal), runs a command and returns stdout, stderr and the exit code, and opens an interactive shell. It knows nothing about agents or messages; higher layers use other vsock ports. |
+| Privileges | `jete` runs under `sudo` in M1, because the jailer starts as root (chroot, device nodes, cgroups) before dropping each VM to an unprivileged user. The daemon and its user model come in M3. |
+| Crates | One Cargo workspace: `crates/jete` (library), `crates/jete-cli` (the `jete` binary), `crates/jete-agent` (guest agent). The toolchain is pinned in `rust-toolchain.toml`, matching the `rust` Ansible role. |
+| Build and test | On hemlock, natively: it is the target platform and the only machine with KVM. Code is edited in the repo, synced to a working copy on hemlock, and built and tested there over SSH. hemlock needs no GitHub credentials. Release builds in CI with pinned deployment by Ansible come later. |
+
+**M1 is done when**, on hemlock:
+
+```bash
+sudo jete run --kernel <vmlinux> --rootfs <image>   # boots a jailed VM, prints its id and time-to-ready
+sudo jete exec <id> -- uname -a                     # runs a command over vsock
+sudo jete shell <id>                                # interactive shell over vsock
+sudo jete rm <id>                                   # stops it and removes its jail
+```
+
 ## Open questions
 
-1. Tool name.
-2. Remote access to the daemon: over SSH or Tailscale only, or a network API with authentication?
-3. How a VM signals it is ready: a tiny agent inside the guest, or a plain vsock handshake from init?
+1. Remote access to the daemon: over SSH or Tailscale only, or a network API with authentication?

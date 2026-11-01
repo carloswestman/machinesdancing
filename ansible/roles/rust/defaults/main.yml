@@ -1,0 +1,12 @@
+# Rust is installed for one user only, never system-wide.
+rust_user: "{{ admin_user }}"
+
+# Pinned toolchain. Keep in sync with rust-toolchain.toml in the repo root.
+rust_toolchain: "1.99.1"
+rust_components:
+  - clippy
+  - rustfmt
+# musl gives static binaries, needed for the guest agent so it runs on any
+# guest image regardless of its libc.
+rust_targets:
+  - x86_64-unknown-linux-musl
