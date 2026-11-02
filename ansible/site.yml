@@ -7,3 +7,4 @@
     - tailscale
     - vm_storage
     - firecracker
+    - guest_images

@@ -77,3 +77,4 @@ The host joins under its inventory name. Tailscale SSH is not enabled: SSH acces
 | `tailscale` | Installs Tailscale from its official apt repository and joins the host to the tailnet under its inventory name. |
 | `vm_storage` | An 80 GB logical volume formatted XFS with reflinks, mounted at `/var/lib/vms`, for VM images, per-VM disks and snapshots. Fails if reflinks are unavailable. |
 | `firecracker` | Requires KVM, installs the pinned Firecracker release (checksum-verified) under `/opt/firecracker/<version>`, links `firecracker` and `jailer` into `/usr/local/bin`, creates `/var/lib/vms/images` and `/var/lib/vms/jailer`. |
+| `guest_images` | Installs the pinned guest kernel (checksum-verified) as `/var/lib/vms/images/kernels/vmlinux`, installs `mmdebstrap` for building root filesystems, creates `/var/lib/vms/images/rootfs`. |

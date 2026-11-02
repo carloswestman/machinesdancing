@@ -1,0 +1,3 @@
+# The root disk is the VM's only block device. The kernel mounts it
+# read-write (root=/dev/vda rw); this entry lets systemd fsck and remount it.
+/dev/vda / ext4 defaults,noatime,errors=remount-ro 0 1
