@@ -39,6 +39,9 @@ mkdir -p "$out"
 # the final move is atomic and nothing large lands in /tmp.
 work=$(mktemp -d "$out/.build.XXXXXX")
 trap 'rm -rf "$work"' EXIT
+# mktemp makes it 0700. apt downloads as the unprivileged _apt user and
+# falls back to root if it can't reach the chroot.
+chmod 0755 "$work"
 
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 name=ubuntu-$version-$stamp
