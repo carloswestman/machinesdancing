@@ -11,4 +11,4 @@ name = "jete"
 path = "src/main.rs"
 
 [dependencies]
-jete = { path = "../jete" }
+jete.workspace = true

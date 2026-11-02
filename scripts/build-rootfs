@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # build-rootfs: builds the guest root filesystem on the VM host, from the Mac.
 #
-# Copies images/rootfs to the host and runs its build script there under
-# sudo. Prints the path of the new image on the host. See images/rootfs/build
+# Builds jete-agent (release), copies it and images/rootfs to the host, and
+# runs the build script there under sudo. Prints the path of the new image on the host. See images/rootfs/build
 # for what it produces and the ROOTFS_* settings, which are forwarded.
 #
 # Environment:
@@ -21,6 +21,14 @@ for var in ROOTFS_OUT ROOTFS_SIZE ROOTFS_MIRROR; do
   fi
 done
 
-COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$repo/images" -cf - rootfs |
+cargo build --release --package jete-agent --manifest-path "$repo/Cargo.toml"
+agent=$repo/target/x86_64-unknown-linux-musl/release/jete-agent
+
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+cp -R "$repo/images/rootfs" "$stage/rootfs"
+cp "$agent" "$stage/rootfs/jete-agent"
+
+COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$stage" -cf - rootfs |
   ssh "$host" "rm -rf $remote_dir && mkdir -p $remote_dir && tar -C $remote_dir -xf -"
 ssh "$host" "sudo env ${env_prefix}$remote_dir/rootfs/build; rc=\$?; rm -rf $remote_dir; exit \$rc"

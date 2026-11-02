@@ -56,6 +56,14 @@ works without a password; see [`ansible/README.md`](../ansible/README.md)).
 The smoke test `crates/jete/tests/host.rs` checks that tests really run on a Linux host with
 `/dev/kvm`. If it fails, the runner is not reaching hemlock.
 
+Tests that boot VMs need root and a current guest image, so they are marked `#[ignore]` and run
+on request:
+
+```bash
+scripts/build-rootfs                                          # after changing jete-agent or images/
+JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots a VM; prints time-to-ready
+```
+
 ### Runner settings
 
 | Variable | Default | Effect |
@@ -80,7 +88,8 @@ cargo fmt                   # format
 cargo test                  # compile on the Mac, run on hemlock
 ```
 
-Building the guest root filesystem (on hemlock, about 30 seconds; prints the new image's path):
+Building the guest root filesystem, with a fresh release build of `jete-agent` inside (on hemlock,
+about 40 seconds; prints the new image's path):
 
 ```bash
 scripts/build-rootfs
