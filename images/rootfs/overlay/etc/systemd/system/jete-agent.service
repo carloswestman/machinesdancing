@@ -1,0 +1,17 @@
+# jete-agent: the host's control channel into the guest, over vsock.
+# Started early in boot, as soon as the root filesystem is mounted, because
+# its first answer is the VM's time-to-ready.
+[Unit]
+Description=jete guest agent
+DefaultDependencies=no
+After=local-fs.target
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+ExecStart=/usr/local/bin/jete-agent
+Restart=always
+RestartSec=100ms
+
+[Install]
+WantedBy=sysinit.target

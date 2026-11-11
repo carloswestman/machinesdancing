@@ -2,8 +2,9 @@
 # build: builds the guest root filesystem, an ext4 image of minimal Ubuntu.
 #
 # Runs on the VM host as root (mmdebstrap needs it to set file ownership and
-# run package scripts). From the Mac, use scripts/build-rootfs, which copies
-# this directory to the host and runs it there.
+# run package scripts). Expects the jete-agent binary next to this script.
+# From the Mac, use scripts/build-rootfs, which builds jete-agent, copies it
+# and this directory to the host, and runs this there.
 #
 # The result is <out>/ubuntu-<version>-<UTC timestamp>.ext4, its package
 # manifest next to it (.manifest), and the symlink ubuntu-<version>.ext4
@@ -33,6 +34,10 @@ if [[ $EUID -ne 0 ]]; then
   echo "build: must run as root" >&2
   exit 1
 fi
+if [[ ! -x $here/jete-agent ]]; then
+  echo "build: $here/jete-agent is missing; run scripts/build-rootfs from the Mac" >&2
+  exit 1
+fi
 
 mkdir -p "$out"
 # The work directory lives next to the output, on the same filesystem, so
@@ -51,10 +56,13 @@ mmdebstrap \
   --components=main \
   --include="$packages" \
   --customize-hook="sync-in '$here/overlay' /" \
+  --customize-hook="copy-in '$here/jete-agent' /usr/local/bin" \
+  --customize-hook='chroot "$1" systemctl enable jete-agent.service' \
   --customize-hook='chroot "$1" passwd --lock root' \
   --customize-hook='rm -f "$1/etc/machine-id" && touch "$1/etc/machine-id"' \
   --customize-hook="chroot \"\$1\" dpkg-query -W -f='\${Package} \${Version}\n' > '$work/$name.manifest'" \
   "$suite" "$work/rootfs" "$mirror"
+echo "jete-agent sha256:$(sha256sum "$here/jete-agent" | cut -d' ' -f1)" >> "$work/$name.manifest"
 
 # mke2fs copies the tree into the new filesystem, keeping ownership and
 # modes, without mounting anything.
