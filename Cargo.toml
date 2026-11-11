@@ -8,6 +8,14 @@ edition = "2024"
 rust-version = "1.99"
 publish = false
 
+# Debug builds are copied to hemlock on every run: keep line numbers for
+# backtraces, drop the rest of the debug info.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
 # Binaries are copied into guest images and onto the host: keep them small.
 [profile.release]
 lto = true
@@ -15,10 +23,11 @@ codegen-units = 1
 strip = true
 
 [workspace.dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
 jete = { path = "crates/jete" }
 jete-agent = { path = "crates/jete-agent" }
 jete-protocol = { path = "crates/jete-protocol" }
-rustix = { version = "1.1.6", features = ["fs", "process", "pty", "termios"] }
+rustix = { version = "1.1.6", features = ["event", "fs", "process", "pty", "rand", "termios"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "process", "rt", "sync", "time"] }

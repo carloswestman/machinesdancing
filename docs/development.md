@@ -49,8 +49,8 @@ works without a password; see [`ansible/README.md`](../ansible/README.md)).
   image as-is.
 - **Tests run on hemlock.** `.cargo/config.toml` sets [`scripts/hemlock-run`](../scripts/hemlock-run)
   as the cargo *runner*. It copies each compiled test or binary to hemlock over SSH, runs it there
-  with the same arguments, streams the output back, passes the exit code through, and deletes the
-  binary. `cargo test` and `cargo run` on the Mac therefore execute on hemlock.
+  with the same arguments, streams the output back and passes the exit code through. `cargo test`
+  and `cargo run` on the Mac therefore execute on hemlock.
 - **hemlock needs no GitHub access.** Binaries are copied over SSH. Nothing is cloned there.
 
 The smoke test `crates/jete/tests/host.rs` checks that tests really run on a Linux host with
@@ -61,7 +61,20 @@ on request:
 
 ```bash
 scripts/build-rootfs                                          # after changing jete-agent or images/
-JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots a VM; prints time-to-ready
+JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots jailed VMs; prints time-to-ready
+```
+
+### Running `jete`
+
+`jete` is not installed on hemlock yet; run it from the Mac through the runner, as root:
+
+```bash
+alias jete='JETE_RUN_SUDO=1 cargo run -q --bin jete --'   # in the repo; add to your shell if you like
+id=$(jete run)              # boots a VM; prints its id, and "ready in N ms" on stderr
+jete ls
+jete exec $id -- uname -a   # stdin, stdout, stderr and the exit code pass through
+jete shell $id              # interactive; exit the shell to leave
+jete rm $id
 ```
 
 ### Runner settings
@@ -73,8 +86,11 @@ JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots a VM; prin
 | `RUST_BACKTRACE`, `RUST_LOG`, `RUST_TEST_THREADS` | | Forwarded to the host when set. |
 
 The runner keeps one SSH connection open for 60 seconds, so a test run with many binaries does not
-reconnect for each one. An interactive terminal is passed through when you have one, so
-`cargo run --bin jete -- shell <id>` will work once it exists.
+reconnect for each one. Uploads are gzip-compressed and named by content hash under
+`~/.cache/jete-run` on hemlock, and kept for a day: an unchanged binary is not sent again, and
+concurrent runs never overwrite each other's copies. Debug builds keep only line tables
+(`[profile.dev]` in `Cargo.toml`) to stay small. An interactive terminal is passed through when you
+have one, which `jete shell` needs.
 
 ## Everyday commands
 
