@@ -4,9 +4,13 @@
 # Cargo calls this with the path of a freshly built binary (a test, or a
 # `cargo run` target) followed by its arguments, because .cargo/config.toml
 # sets it as the runner for x86_64-unknown-linux-musl. The binary is copied
-# to the host over SSH, run there with the same arguments, then removed.
-# Output streams back and the exit code is passed through, so `cargo test`
-# on the Mac reports results from the host.
+# to the host over SSH and run there with the same arguments. Output streams
+# back and the exit code is passed through, so `cargo test` on the Mac
+# reports results from the host.
+#
+# Copies are named by content hash and kept for a day, so an unchanged
+# binary is not sent again, and concurrent runs never overwrite one another.
+# Uploads are compressed: debug binaries shrink about four times.
 #
 # Environment:
 #   JETE_HOST       SSH host to run on (default: hemlock)
@@ -23,14 +27,20 @@ fi
 host=${JETE_HOST:-hemlock}
 binary=$1
 shift
-name=$(basename "$binary")
+hash=$(shasum -a 256 "$binary" | cut -c1-16)
+name=$(basename "$binary")-$hash
 remote_dir=.cache/jete-run
 
 # Reuse one SSH connection across the many calls of a test run.
 ssh_opts=(-o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-%r@%h:%p" -o ControlPersist=60)
 
-ssh "${ssh_opts[@]}" "$host" "mkdir -p $remote_dir"
-scp -q "${ssh_opts[@]}" "$binary" "$host:$remote_dir/$name"
+# Upload unless the host already has this exact build. It lands under a
+# temporary name and is renamed into place, so a reader never sees half a
+# file. Setup reads nothing from our stdin: that belongs to the binary.
+if ! ssh -n "${ssh_opts[@]}" "$host" "mkdir -p $remote_dir && test -x $remote_dir/$name"; then
+  gzip -1 -c "$binary" | ssh "${ssh_opts[@]}" "$host" \
+    "cd $remote_dir && gunzip > $name.part.\$\$ && chmod +x $name.part.\$\$ && mv $name.part.\$\$ $name"
+fi
 
 env_prefix=""
 for var in RUST_BACKTRACE RUST_LOG RUST_TEST_THREADS; do
@@ -59,7 +69,7 @@ fi
 
 set +e
 ssh "${ssh_opts[@]}" "$tty_opt" "$host" \
-  "cd $remote_dir && ${sudo_prefix}env ${env_prefix}./$(printf '%q' "$name") $args; rc=\$?; rm -f ./$(printf '%q' "$name"); exit \$rc"
+  "cd $remote_dir && touch $name && ${sudo_prefix}env ${env_prefix}./$name $args; rc=\$?; find . -maxdepth 1 -type f -mmin +1440 -delete; exit \$rc"
 rc=$?
 set -e
 exit $rc

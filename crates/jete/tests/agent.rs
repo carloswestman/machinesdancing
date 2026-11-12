@@ -27,7 +27,7 @@ fn cmd(argv: &[&str]) -> Exec {
 
 async fn run(exec: Exec, stdin: &'static [u8]) -> (ExitStatus, Vec<u8>, Vec<u8>) {
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    let status = agent::exec(session(), exec, stdin, &mut out, &mut err)
+    let status = agent::exec(session(), exec, stdin, &mut out, &mut err, None)
         .await
         .unwrap();
     (status, out, err)
@@ -107,6 +107,27 @@ async fn exec_with_a_tty_gets_a_terminal_of_the_requested_size() {
 }
 
 #[tokio::test]
+async fn resizes_reach_the_terminal() {
+    let mut exec = cmd(&["sh", "-c", "sleep 0.5; stty size"]);
+    exec.tty = Some(WindowSize {
+        rows: 30,
+        cols: 100,
+    });
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    tx.send(WindowSize {
+        rows: 50,
+        cols: 132,
+    })
+    .await
+    .unwrap();
+    let mut out = Vec::new();
+    agent::exec(session(), exec, &b""[..], &mut out, Vec::new(), Some(rx))
+        .await
+        .unwrap();
+    assert_eq!(out, b"50 132\r\n");
+}
+
+#[tokio::test]
 async fn exec_of_a_missing_program_is_an_error() {
     let mut out = Vec::new();
     let err = agent::exec(
@@ -115,6 +136,7 @@ async fn exec_of_a_missing_program_is_an_error() {
         &b""[..],
         &mut out,
         Vec::new(),
+        None,
     )
     .await
     .unwrap_err();
@@ -123,7 +145,7 @@ async fn exec_of_a_missing_program_is_an_error() {
 
 #[tokio::test]
 async fn exec_of_an_empty_argv_is_an_error() {
-    let err = agent::exec(session(), cmd(&[]), &b""[..], Vec::new(), Vec::new())
+    let err = agent::exec(session(), cmd(&[]), &b""[..], Vec::new(), Vec::new(), None)
         .await
         .unwrap_err();
     assert!(err.to_string().contains("empty argv"), "{err}");

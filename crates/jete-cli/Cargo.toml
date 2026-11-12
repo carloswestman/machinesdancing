@@ -11,4 +11,9 @@ name = "jete"
 path = "src/main.rs"
 
 [dependencies]
+clap.workspace = true
 jete.workspace = true
+jete-protocol.workspace = true
+rustix.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["io-std", "signal"] }

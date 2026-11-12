@@ -7,9 +7,10 @@
 use std::io;
 use std::path::Path;
 
-use jete_protocol::{self as proto, Exec, ExitStatus, Frame, Op, Ready, Request};
+use jete_protocol::{self as proto, Exec, ExitStatus, Frame, Op, Ready, Request, WindowSize};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::UnixStream;
+use tokio::sync::mpsc;
 
 pub use jete_protocol::AGENT_PORT;
 
@@ -61,15 +62,16 @@ pub async fn ping<S: AsyncRead + AsyncWrite + Unpin>(mut stream: S) -> io::Resul
     }
 }
 
-/// Runs a process in the guest without a tty, copying `stdin` to it until
-/// end of file and its output to `stdout` and `stderr`, and returns how it
-/// ended.
+/// Runs a process in the guest, copying `stdin` to it until end of file and
+/// its output to `stdout` and `stderr`, and returns how it ended. With a
+/// tty (`exec.tty`), window sizes sent on `resizes` reach its terminal.
 pub async fn exec<S, I, O, E>(
     stream: S,
     exec: Exec,
     mut stdin: I,
     mut stdout: O,
     mut stderr: E,
+    resizes: Option<mpsc::Receiver<WindowSize>>,
 ) -> io::Result<ExitStatus>
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
@@ -80,21 +82,42 @@ where
     let (mut reader, mut writer) = tokio::io::split(stream);
     proto::write_frame(&mut writer, &Frame::Request(Request::new(Op::Exec(exec)))).await?;
 
-    // Input runs on its own task so a process that does not read its input
-    // never stalls its output.
-    let input = tokio::spawn(async move {
+    // Input and resizes run on their own tasks, so a process that does not
+    // read its input never stalls its output. One task owns the write half.
+    let (frames, mut outgoing) = mpsc::channel::<Frame>(16);
+    let mut tasks = tokio::task::JoinSet::new();
+    tasks.spawn(async move {
+        while let Some(frame) = outgoing.recv().await {
+            proto::write_frame(&mut writer, &frame).await?;
+        }
+        // Keep the write half open: closing it would end the session.
+        std::future::pending::<io::Result<()>>().await
+    });
+    let input = frames.clone();
+    tasks.spawn(async move {
         let mut buf = vec![0u8; 64 * 1024];
         loop {
             let n = stdin.read(&mut buf).await?;
             if n == 0 {
                 break;
             }
-            proto::write_frame(&mut writer, &Frame::Stdin(buf[..n].to_vec())).await?;
+            if input.send(Frame::Stdin(buf[..n].to_vec())).await.is_err() {
+                return Ok(());
+            }
         }
-        proto::write_frame(&mut writer, &Frame::StdinEof).await?;
-        // Keep the write half open: closing it would end the session.
-        std::future::pending::<io::Result<()>>().await
+        let _ = input.send(Frame::StdinEof).await;
+        Ok(())
     });
+    if let Some(mut resizes) = resizes {
+        tasks.spawn(async move {
+            while let Some(size) = resizes.recv().await {
+                if frames.send(Frame::Resize(size)).await.is_err() {
+                    break;
+                }
+            }
+            Ok(())
+        });
+    }
 
     let result = async {
         loop {
@@ -111,7 +134,7 @@ where
         }
     }
     .await;
-    input.abort();
+    tasks.abort_all();
     result
 }
 
