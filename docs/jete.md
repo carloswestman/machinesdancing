@@ -14,8 +14,9 @@ agents, roles, messages or GitHub. Higher-level tools build on its interface.
 - Attach extra read-only disks the caller provides (for example, shared files such as skills).
 - Expose each VM's vsock to the caller as a host-side Unix socket. It carries bytes and does not
   interpret them.
-- Apply the network setting the caller asks for: none (the default), or a tap device that reaches
-  only the addresses and host ports the caller allows.
+- Apply the network setting the caller asks for: none (the default), a tap device that reaches
+  only the addresses and host ports the caller allows, or one whose traffic all goes to a proxy
+  port on the host (the egress gateway's).
 - Set resource limits per VM: vCPUs, memory, disk size.
 - Snapshot and restore VMs, and keep a warm pool of pre-booted VMs for near-instant starts.
 
@@ -98,12 +99,13 @@ Done: time-to-ready is about 1.7 s, and `jete ls` lists VMs too.
 
 jete's part of networking, as set out in [architecture.md](architecture.md): a network link that
 reaches only the addresses it is given. Allowing by name, logging and credentials belong to the
-egress gateway, a separate tool built next; to jete it is just one more address.
+egress gateway, barre, a separate tool built next. To jete it is just a port that a VM's traffic
+is handed to (`--egress-proxy`, added with the gateway: [gateway.md](gateway.md#who-owns-what)).
 
 | Concern | Decision |
 |---|---|
 | Default | No network, as in M1: no network device at all. A VM gets one only when `jete run` is given `--allow` or `--host-port`. Deny by default (principle 4): a VM with a network reaches exactly what it was given. |
-| Options | `--allow <address or CIDR>`: an IPv4 destination the VM may reach, any port and protocol (`1.1.1.1`, `140.82.112.0/20`); repeatable. `--host-port <port>`: a TCP or UDP port on the host side of the VM's link that the VM may reach (`53`, `443`); repeatable. This is how a VM will reach the gateway. `--dns <address>`: the resolver the guest uses; it must be reachable through one of the other two. |
+| Options | `--allow <address or CIDR>`: an IPv4 destination the VM may reach, any port and protocol (`1.1.1.1`, `140.82.112.0/20`); repeatable. `--host-port <port>`: a TCP or UDP port on the host side of the VM's link that the VM may reach (`53`, `443`); repeatable. `--dns <address>`: the resolver the guest uses; it must be reachable through one of the other two. |
 | Addressing | IPv4 only. Each VM gets a /30 from `10.200.0.0/16` (16,384 VMs), allocated under the same lock as its user id and recorded in `vm.json`: the host side is `.1`, the guest `.2`. The guest kernel configures `eth0` from the boot line (`ip=…`), so the guest runs no network daemon and time-to-ready should not grow. `/etc/resolv.conf` in the image points at `/proc/net/pnp`, where the kernel writes the resolver from `--dns`. |
 | Host side | A tap device per VM, `jete-<id>`, owned by the VM's user so the jailed Firecracker can open it, in the host's network namespace. Traffic is routed (not bridged) and masqueraded out of the host's default route. |
 | Firewall | jete owns one nftables table, `inet jete`, and touches nothing else (Tailscale's tables stay as they are). Per VM, rules let it start connections only to its allowed addresses and to its host ports on `.1`; replies come back. Everything else is dropped: the host's other addresses and ports, and the LAN and the tailnet unless an allowed address covers them. Other VMs are never reachable, even through an allowed address. Nothing can open a connection into a VM, not even the host. IPv6 from a VM is dropped. Traffic that doesn't involve a VM is not affected. |
