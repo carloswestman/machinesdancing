@@ -1,0 +1,21 @@
+# Installs the jete CLI from a build on the Mac. Not part of site.yml, so
+# configuring a host never depends on a local build; see jete.yml.
+- name: Check that jete is built
+  ansible.builtin.stat:
+    path: "{{ jete_binary }}"
+  delegate_to: localhost
+  become: false
+  register: jete_build
+
+- name: Require a jete build
+  ansible.builtin.fail:
+    msg: "No jete build at {{ jete_binary }}. Run scripts/install-jete, which builds it first."
+  when: not jete_build.stat.exists
+
+- name: Install jete
+  ansible.builtin.copy:
+    src: "{{ jete_binary }}"
+    dest: /usr/local/bin/jete
+    owner: root
+    group: root
+    mode: "0755"

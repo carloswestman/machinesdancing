@@ -1,0 +1,3 @@
+# The jete binary to install, built on the Mac (scripts/install-jete builds
+# it first). A release build for the host's target.
+jete_binary: "{{ playbook_dir }}/../target/x86_64-unknown-linux-musl/release/jete"

@@ -1,0 +1,8 @@
+# Installs jete on the VM hosts from a build on the Mac. Run it through
+# scripts/install-jete, which builds a release first. Kept out of site.yml so
+# configuring a host never depends on a local build.
+- name: Install jete on VM hosts
+  hosts: vm_hosts
+  become: true
+  roles:
+    - jete
