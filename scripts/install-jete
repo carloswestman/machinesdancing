@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# install-jete: builds jete (release) and installs it on the VM hosts as
+# /usr/local/bin/jete, through ansible/jete.yml. Arguments go to
+# ansible-playbook, e.g. --check --diff for a dry run, or --limit <host>.
+
+set -euo pipefail
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+
+cargo build --release --package jete-cli --manifest-path "$repo/Cargo.toml"
+cd "$repo/ansible"
+ansible-playbook jete.yml "$@"

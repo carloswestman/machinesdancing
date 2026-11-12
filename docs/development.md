@@ -66,15 +66,28 @@ JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots jailed VMs
 
 ### Running `jete`
 
-`jete` is not installed on hemlock yet; run it from the Mac through the runner, as root:
+On hemlock, `jete` is installed as `/usr/local/bin/jete` and runs as root:
+
+```bash
+id=$(sudo jete run)              # boots a VM; prints its id, and "ready in N ms" on stderr
+sudo jete ls
+sudo jete exec $id -- uname -a   # stdin, stdout, stderr and the exit code pass through
+sudo jete shell $id              # interactive; exit the shell to leave
+sudo jete rm $id
+```
+
+To install or update it, build a release on the Mac and copy it over with Ansible:
+
+```bash
+scripts/install-jete --check --diff   # dry run
+scripts/install-jete                  # build, then install on the VM hosts
+```
+
+From the Mac, run your working copy on hemlock through the runner instead, without installing it:
 
 ```bash
 alias jete='JETE_RUN_SUDO=1 cargo run -q --bin jete --'   # in the repo; add to your shell if you like
-id=$(jete run)              # boots a VM; prints its id, and "ready in N ms" on stderr
 jete ls
-jete exec $id -- uname -a   # stdin, stdout, stderr and the exit code pass through
-jete shell $id              # interactive; exit the shell to leave
-jete rm $id
 ```
 
 ### Runner settings
@@ -109,6 +122,12 @@ about 40 seconds; prints the new image's path):
 
 ```bash
 scripts/build-rootfs
+```
+
+Installing `jete` on hemlock (release build, through `ansible/jete.yml`):
+
+```bash
+scripts/install-jete
 ```
 
 Changing hemlock itself:
