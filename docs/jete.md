@@ -14,8 +14,8 @@ agents, roles, messages or GitHub. Higher-level tools build on its interface.
 - Attach extra read-only disks the caller provides (for example, shared files such as skills).
 - Expose each VM's vsock to the caller as a host-side Unix socket. It carries bytes and does not
   interpret them.
-- Apply the network setting the caller asks for: none (the default), or a tap device with an
-  egress allowlist.
+- Apply the network setting the caller asks for: none (the default), or a tap device that reaches
+  only the addresses and host ports the caller allows.
 - Set resource limits per VM: vCPUs, memory, disk size.
 - Snapshot and restore VMs, and keep a warm pool of pre-booted VMs for near-instant starts.
 
@@ -59,9 +59,13 @@ Three layers. Each is usable on its own:
 |---|---|---|
 | M0 ✓ | Host bootstrap | An Ansible playbook takes a fresh Ubuntu Server to "can run jailed Firecracker." |
 | M1 ✓ | One VM | `jete` boots a jailed VM from a kernel and root filesystem, and the host runs a command and opens a shell in it over vsock. |
-| M2 | Many VMs | Copy-on-write disks, optional tap device and egress allowlist, list, stop and destroy, with no leftovers after teardown. |
+| M2 | Network | `jete run --allow <address>` gives a VM a network link that reaches only the addresses and host ports it is given, and nothing else: not the host, the LAN, the tailnet or other VMs. Teardown leaves nothing behind. |
 | M3 | Daemon and API | The daemon owns VM lifecycles; the CLI becomes its client. |
 | M4 | Speed | Snapshot and restore, plus a warm pool. |
+
+M1 also delivered most of what was first planned as M2, "Many VMs": copy-on-write disks, many VMs
+at once, `ls` and `rm` with no leftovers. Stopping a VM while keeping its disk, and a disk size per
+VM, are left for when something needs them.
 
 From M1 on, every milestone reports **time-to-ready**: how long from the create request until the
 guest answers on vsock.
@@ -89,6 +93,37 @@ sudo jete rm <id>                                   # stops it and removes its j
 ```
 
 Done: time-to-ready is about 1.7 s, and `jete ls` lists VMs too.
+
+## M2 plan
+
+jete's part of networking, as set out in [architecture.md](architecture.md): a network link that
+reaches only the addresses it is given. Allowing by name, logging and credentials belong to the
+egress gateway, a separate tool built next; to jete it is just one more address.
+
+| Concern | Decision |
+|---|---|
+| Default | No network, as in M1: no network device at all. A VM gets one only when `jete run` is given `--allow` or `--host-port`. Deny by default (principle 4): a VM with a network reaches exactly what it was given. |
+| Options | `--allow <address or CIDR>`: an IPv4 destination the VM may reach, any port and protocol (`1.1.1.1`, `140.82.112.0/20`); repeatable. `--host-port <port>`: a TCP or UDP port on the host side of the VM's link that the VM may reach (`53`, `443`); repeatable. This is how a VM will reach the gateway. `--dns <address>`: the resolver the guest uses; it must be reachable through one of the other two. |
+| Addressing | IPv4 only. Each VM gets a /30 from `10.200.0.0/16` (16,384 VMs), allocated under the same lock as its user id and recorded in `vm.json`: the host side is `.1`, the guest `.2`. The guest kernel configures `eth0` from the boot line (`ip=…`), so the guest runs no network daemon and time-to-ready should not grow. `/etc/resolv.conf` in the image points at `/proc/net/pnp`, where the kernel writes the resolver from `--dns`. |
+| Host side | A tap device per VM, `jete-<id>`, owned by the VM's user so the jailed Firecracker can open it, in the host's network namespace. Traffic is routed (not bridged) and masqueraded out of the host's default route. |
+| Firewall | jete owns one nftables table, `inet jete`, and touches nothing else (Tailscale's tables stay as they are). Per VM, rules let it start connections only to its allowed addresses and to its host ports on `.1`; replies come back. Everything else is dropped: the host's other addresses and ports, the LAN, the tailnet and other VMs, unless an allowed address covers them. Nothing can open a connection into a VM. IPv6 from a VM is dropped. Traffic that doesn't involve a VM is not affected. |
+| Teardown | `jete rm` also deletes the VM's tap and its rules. A test checks that neither is left. |
+| `jete ls` | Shows each VM's address, or `-` without a network. |
+| Host setup | A `vm_network` Ansible role: installs `nftables` and turns on IPv4 forwarding. |
+| Tests | On hemlock: an allowed address is reachable and one not allowed isn't; a host port given is reachable and the host's SSH port isn't; the LAN and another networked VM aren't reachable; DNS works through an allowed resolver; a VM without network options has no network device; nothing is left after `rm`. |
+
+**M2 is done when**, on hemlock:
+
+```bash
+id=$(sudo jete run --allow 1.1.1.1 --dns 1.1.1.1)
+sudo jete exec $id -- bash -c 'echo > /dev/tcp/1.1.1.1/443'          # connects
+sudo jete exec $id -- getent hosts github.com                         # resolves through 1.1.1.1
+sudo jete exec $id -- bash -c 'echo > /dev/tcp/8.8.8.8/443'          # fails: not allowed
+sudo jete exec $id -- bash -c 'echo > /dev/tcp/192.168.0.1/80'       # fails: the LAN
+sudo jete rm $id                                                       # no tap or rules left
+```
+
+and time-to-ready with a network is reported next to M1's 1.7 s.
 
 ## Open questions
 
