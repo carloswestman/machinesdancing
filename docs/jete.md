@@ -11,6 +11,7 @@ agents, roles, messages or GitHub. Higher-level tools build on its interface.
 - Manage images: a guest kernel plus a read-only root filesystem.
 - Run the VM lifecycle: create, start, stop, destroy, list, inspect.
 - Give each VM a copy-on-write disk on top of a shared base image.
+- Attach extra read-only disks the caller provides (for example, shared files such as skills).
 - Expose each VM's vsock to the caller as a host-side Unix socket. It carries bytes and does not
   interpret them.
 - Apply the network setting the caller asks for: none (the default), or a tap device with an
