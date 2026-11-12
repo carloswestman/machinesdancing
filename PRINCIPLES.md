@@ -4,7 +4,7 @@
 
 machinesdancing is a harness for running a team of AI agents as a governed system. A human sets
 direction and holds final authority. A planner turns direction into work. Workers execute that
-work and deliver it as GitHub pull requests.
+work and deliver it as pull requests.
 
 It formalizes a working practice that already exists: per-agent clones, a planner as the hub,
 tickets and PRs as the record, procedures as shared knowledge. Today that practice is held
@@ -46,26 +46,32 @@ rules into the system. We trust agents' judgment, not their compliance.
    need the human's approval, per action. The system issues an approval for one specific action;
    it cannot be relayed, reused or inferred.
 
-9. **The record is the decision.** Durable artifacts on GitHub (tickets, PRs, comments) are the
-   truth. Messages are notifications that point at them. A decision or finding that exists only
-   in a conversation does not exist.
+9. **The record is the decision.** Durable records are the truth: tickets and their state in
+   git, code and reviews on the code host, and every message in the bus's log. Messages point at
+   the artifacts they concern, and a decision made in conversation is written to its ticket or
+   pull request by the system. A decision or finding that exists only in an agent's context does
+   not exist.
 
-10. **GitHub-centric.** Work is delivered as pull requests, and an open PR is the claim on that
-    work. Agents read others' work from GitHub, never from a stale local copy.
+10. **Git-centric.** Work is delivered as pull requests, and an open PR is the claim on that work.
+    Tickets, configuration and knowledge live in git too. External systems (the code host, a
+    tracker such as Jira) are reached through connectors and kept in step with git. Agents read
+    others' work from its source, never from a stale local copy.
 
 11. **Claims carry evidence.** A message that asserts a fact cites its source: the file and line,
     the query, the measurement, or the instrument used to find it. A claim nobody can check is a
     claim nobody can catch.
 
-12. **Procedures are knowledge.** Recurring tasks are captured as versioned runbooks that agents
+12. **Procedures are knowledge.** Recurring tasks are captured as versioned skills that agents
     are given by role. When an agent discovers a repeatable workflow, it records the workflow
     instead of leaving the next agent to re-derive it.
 
 13. **The system runs the lifecycle.** Work moves through defined states (queued, in flight,
     review, merged, done). Transitions and their bookkeeping (branches, PRs, ticket status,
     tracker updates) are executed and verified by the system, not left to an agent's memory.
+    Routine steps around and between tasks (syncing clones, updating branches after a merge) are
+    workflow rules triggered by events, never instructions in a prompt.
 
-14. **Agents exist on demand.** The orchestrator spawns agents for work and destroys them when it
+14. **Agents exist on demand.** The control plane spawns agents for work and destroys them when it
     is done, taking their access with them. Events such as a merge, a review or a CI result wake
     the right agent. Nobody has to poll.
 
