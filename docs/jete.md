@@ -59,7 +59,7 @@ Three layers. Each is usable on its own:
 |---|---|---|
 | M0 ✓ | Host bootstrap | An Ansible playbook takes a fresh Ubuntu Server to "can run jailed Firecracker." |
 | M1 ✓ | One VM | `jete` boots a jailed VM from a kernel and root filesystem, and the host runs a command and opens a shell in it over vsock. |
-| M2 | Network | `jete run --allow <address>` gives a VM a network link that reaches only the addresses and host ports it is given, and nothing else: not the host, the LAN, the tailnet or other VMs. Teardown leaves nothing behind. |
+| M2 ✓ | Network | `jete run --allow <address>` gives a VM a network link that reaches only the addresses and host ports it is given, and nothing else: not the host, the LAN, the tailnet or other VMs. Teardown leaves nothing behind. |
 | M3 | Daemon and API | The daemon owns VM lifecycles; the CLI becomes its client. |
 | M4 | Speed | Snapshot and restore, plus a warm pool. |
 
@@ -124,6 +124,9 @@ sudo jete rm $id                                                       # no tap 
 ```
 
 and time-to-ready with a network is reported next to M1's 1.7 s.
+
+Done: time-to-ready with a network is 1.7–1.8 s, the same as without one. The tests in
+`crates/jete/tests/net.rs` check each of the above, plus the host's SSH, the tailnet and other VMs.
 
 ## Open questions
 
