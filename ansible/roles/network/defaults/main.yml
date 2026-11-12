@@ -1,0 +1,4 @@
+# Wired interfaces to bring up with DHCP, preferred over Wi-Fi (lower route
+# metric). Set per host in host_vars. Wi-Fi stays as configured by the
+# installer, as a fallback.
+network_wired_interfaces: []

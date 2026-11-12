@@ -4,18 +4,25 @@
 //! host's state in /var/lib/vms; there is no daemon yet.
 
 use std::io::{self, Write};
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use jete::agent::{self, AGENT_PORT};
+use jete::net::{Cidr, NetSpec};
 use jete::vm::{self, Host, Spec, Vm};
 use jete_protocol::{Exec, ExitStatus, WindowSize};
 use rustix::termios;
 use tokio::sync::mpsc;
 
 #[derive(Parser)]
-#[command(name = "jete", bin_name = "jete", version, about = "Fast Firecracker VM manager")]
+#[command(
+    name = "jete",
+    bin_name = "jete",
+    version,
+    about = "Fast Firecracker VM manager"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -37,6 +44,19 @@ enum Command {
         /// Guest memory in MiB
         #[arg(long, default_value_t = 512)]
         mem: u32,
+        /// Give the VM a network that may reach this IPv4 address or CIDR
+        /// block, any port. Repeatable. Without --allow or --host-port, the
+        /// VM has no network at all.
+        #[arg(long, value_name = "ADDRESS")]
+        allow: Vec<Cidr>,
+        /// Give the VM a network that may reach this TCP or UDP port on the
+        /// host side of its link. Repeatable.
+        #[arg(long, value_name = "PORT")]
+        host_port: Vec<u16>,
+        /// The guest's DNS resolver; must be reachable through --allow or
+        /// --host-port
+        #[arg(long, value_name = "ADDRESS")]
+        dns: Option<Ipv4Addr>,
         /// Print the VM's record as JSON
         #[arg(long)]
         json: bool,
@@ -92,14 +112,33 @@ async fn run(command: Command) -> io::Result<i32> {
             rootfs,
             vcpus,
             mem,
+            allow,
+            host_port,
+            dns,
             json,
         } => {
+            let network = if allow.is_empty() && host_port.is_empty() {
+                if dns.is_some() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "--dns needs a network: add --allow or --host-port",
+                    ));
+                }
+                None
+            } else {
+                Some(NetSpec {
+                    allow,
+                    host_ports: host_port,
+                    dns,
+                })
+            };
             let defaults = Spec::default();
             let spec = Spec {
                 kernel: kernel.unwrap_or(defaults.kernel),
                 rootfs: rootfs.unwrap_or(defaults.rootfs),
                 vcpus,
                 mem_mib: mem,
+                network,
             };
             let vm = Vm::start(&host, &spec).await?;
             if json {
@@ -123,7 +162,7 @@ async fn run(command: Command) -> io::Result<i32> {
                 return Ok(0);
             }
             println!(
-                "{:<10} {:<8} {:>5} {:>8} {:>9}",
+                "{:<10} {:<8} {:>5} {:>8} {:>9}  ADDRESS",
                 "ID", "STATE", "VCPUS", "MEM MiB", "READY ms"
             );
             for vm in vms {
@@ -133,9 +172,13 @@ async fn run(command: Command) -> io::Result<i32> {
                     "stopped"
                 };
                 let ready = vm.ready_ms.map_or("-".into(), |ms| ms.to_string());
+                let address = vm
+                    .network
+                    .as_ref()
+                    .map_or("-".into(), |net| net.guest.to_string());
                 println!(
-                    "{:<10} {:<8} {:>5} {:>8} {:>9}",
-                    vm.id, state, vm.vcpus, vm.mem_mib, ready
+                    "{:<10} {:<8} {:>5} {:>8} {:>9}  {}",
+                    vm.id, state, vm.vcpus, vm.mem_mib, ready, address
                 );
             }
             Ok(0)

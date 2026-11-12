@@ -64,6 +64,11 @@ mmdebstrap \
   "$suite" "$work/rootfs" "$mirror"
 echo "jete-agent sha256:$(sha256sum "$here/jete-agent" | cut -d' ' -f1)" >> "$work/$name.manifest"
 
+# The guest kernel configures the network from jete's boot line (ip=...) and
+# writes the resolver it was given to /proc/net/pnp, in resolv.conf format.
+# Set after mmdebstrap, which manages resolv.conf itself while it builds.
+ln -sfn /proc/net/pnp "$work/rootfs/etc/resolv.conf"
+
 # mke2fs copies the tree into the new filesystem, keeping ownership and
 # modes, without mounting anything.
 mke2fs -q -t ext4 -L rootfs -d "$work/rootfs" "$work/$name.ext4" "$size"
