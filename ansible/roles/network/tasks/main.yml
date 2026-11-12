@@ -1,0 +1,41 @@
+# The host's links, and routing for VMs' networks (jete's tap devices).
+
+- name: Configure wired interfaces
+  ansible.builtin.template:
+    src: 60-wired.yaml.j2
+    dest: /etc/netplan/60-wired.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: network_wired_interfaces | length > 0
+  notify: Apply netplan
+
+- name: Remove wired interface config when none are listed
+  ansible.builtin.file:
+    path: /etc/netplan/60-wired.yaml
+    state: absent
+  when: network_wired_interfaces | length == 0
+  notify: Apply netplan
+
+# jete creates its own nftables table (inet jete) at runtime and touches
+# nothing else.
+- name: Install nftables
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+
+# The service loads /etc/nftables.conf at boot, which starts with "flush
+# ruleset": it would wipe Tailscale's rules and jete's. It stays off.
+- name: Keep the nftables service off
+  ansible.builtin.systemd_service:
+    name: nftables
+    enabled: false
+
+# VMs' traffic is routed and masqueraded out of the default route.
+- name: Route IPv4
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/60-jete.conf
+    state: present
+    reload: true

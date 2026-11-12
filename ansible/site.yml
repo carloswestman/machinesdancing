@@ -5,6 +5,7 @@
     - access
     - base
     - tailscale
+    - network
     - vm_storage
     - firecracker
     - guest_images

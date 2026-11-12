@@ -64,6 +64,9 @@ scripts/build-rootfs                                          # after changing j
 JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots jailed VMs; prints time-to-ready
 ```
 
+The network tests (`crates/jete/tests/net.rs`) also need IPv4 forwarding on the host (the
+`network` Ansible role) and internet access from it: a networked VM reaches `1.1.1.1`.
+
 ### Running `jete`
 
 On hemlock, `jete` is installed as `/usr/local/bin/jete` and runs as root:

@@ -10,6 +10,8 @@
 //!   Firecracker config, and the vsock and API sockets;
 //! - a cgroup, `/sys/fs/cgroup/jete/<id>`, capping its memory;
 //! - a new PID namespace;
+//! - optionally, a network link that reaches only what it is given (see
+//!   [`crate::net`]);
 //! - a state directory, `<state root>/<id>`, with its record (`vm.json`)
 //!   and its console and Firecracker log (`console.log`).
 //!
@@ -26,6 +28,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use crate::agent::{self, AGENT_PORT};
+use crate::net::{self, NetSpec, Network};
 
 /// The first user id given to a VM. Far above regular users and the
 /// subordinate ids (100000-165535) that rootless containers use.
@@ -73,6 +76,8 @@ pub struct Spec {
     pub rootfs: PathBuf,
     pub vcpus: u8,
     pub mem_mib: u32,
+    /// None: no network device at all.
+    pub network: Option<NetSpec>,
 }
 
 impl Default for Spec {
@@ -82,6 +87,7 @@ impl Default for Spec {
             rootfs: "/var/lib/vms/images/rootfs/ubuntu-26.04.ext4".into(),
             vcpus: 2,
             mem_mib: 512,
+            network: None,
         }
     }
 }
@@ -102,6 +108,8 @@ pub struct Vm {
     pub vcpus: u8,
     pub mem_mib: u32,
     pub created_unix_ms: u64,
+    #[serde(default)]
+    pub network: Option<Network>,
     /// Time from the start request until the agent answered.
     pub ready_ms: Option<u64>,
     #[serde(skip)]
@@ -176,7 +184,8 @@ impl Vm {
         fs::read_to_string(format!("/proc/{pid}/cgroup")).is_ok_and(|cg| cg == expected)
     }
 
-    /// Kills the VM if it runs, and deletes its jail, cgroup and state.
+    /// Kills the VM if it runs, and deletes its jail, cgroup, network and
+    /// state.
     /// Safe to repeat, and works on half-created VMs.
     pub fn remove(&self) -> io::Result<()> {
         self.kill()?;
@@ -194,6 +203,9 @@ impl Vm {
                 }
                 Err(_) => std::thread::sleep(Duration::from_millis(10)),
             }
+        }
+        if let Some(network) = &self.network {
+            network.destroy()?;
         }
         remove_dir_all_if_exists(&self.jail_dir)?;
         remove_dir_all_if_exists(&self.state_dir)
@@ -232,7 +244,8 @@ impl Vm {
         Ok(())
     }
 
-    /// Creates the id, state directory and jail, without starting anything.
+    /// Creates the id, state directory, network and jail, without starting
+    /// anything.
     fn prepare(host: &Host, spec: &Spec) -> io::Result<Vm> {
         let kernel =
             fs::canonicalize(&spec.kernel).map_err(|e| with_path(e, "kernel", &spec.kernel))?;
@@ -245,11 +258,12 @@ impl Vm {
             .expect("a canonical file path has a name");
 
         fs::create_dir_all(&host.state_root)?;
-        // Ids and user ids are allocated under a lock, so concurrent starts
-        // never share either.
+        // Ids, user ids and network slots are allocated under a lock, so
+        // concurrent starts never share any.
         let lock = File::open(&host.state_root)?;
         rustix::fs::flock(&lock, rustix::fs::FlockOperation::LockExclusive)?;
-        let uid = free_uid(host)?;
+        let existing = list(host)?;
+        let uid = free_uid(&existing)?;
         let (id, state_dir) = loop {
             let id = random_id()?;
             let dir = host.state_root.join(&id);
@@ -260,6 +274,17 @@ impl Vm {
             }
         };
         let jail_dir = host.jailer_root.join(exec_name).join(&id);
+        let network = match &spec.network {
+            Some(spec) => {
+                let slot = net::free_slot(
+                    existing
+                        .iter()
+                        .filter_map(|vm| Some(vm.network.as_ref()?.slot)),
+                )?;
+                Some(Network::new(&id, slot, spec))
+            }
+            None => None,
+        };
         let mut vm = Vm {
             uid,
             pid: None,
@@ -273,12 +298,21 @@ impl Vm {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis() as u64,
+            network,
             ready_ms: None,
             id,
             state_dir,
             jail_dir,
         };
         vm.save()?;
+        // The record names the network before it exists, so removing the VM
+        // cleans up whatever part of it was created.
+        if let Some(network) = &vm.network
+            && let Err(e) = network.create(uid)
+        {
+            let _ = vm.remove();
+            return Err(e);
+        }
         drop(lock);
 
         if let Err(e) = vm.fill_jail() {
@@ -293,10 +327,21 @@ impl Vm {
         fs::create_dir_all(&self.chroot)?;
         link_or_copy(&self.kernel, &self.chroot.join("vmlinux"))?;
         reflink(&self.rootfs, &self.chroot.join("rootfs.ext4"), self.uid)?;
+        let mut boot_args = BOOT_ARGS.to_string();
+        let mut interfaces = Vec::new();
+        if let Some(network) = &self.network {
+            boot_args.push(' ');
+            boot_args.push_str(&network.boot_arg());
+            interfaces.push(serde_json::json!({
+                "iface_id": "eth0",
+                "host_dev_name": network.tap,
+                "guest_mac": network.guest_mac(),
+            }));
+        }
         let config = serde_json::json!({
             "boot-source": {
                 "kernel_image_path": "/vmlinux",
-                "boot_args": BOOT_ARGS,
+                "boot_args": boot_args,
             },
             "drives": [{
                 "drive_id": "root",
@@ -308,6 +353,7 @@ impl Vm {
                 "vcpu_count": self.vcpus,
                 "mem_size_mib": self.mem_mib,
             },
+            "network-interfaces": interfaces,
             "vsock": {
                 "guest_cid": GUEST_CID,
                 "uds_path": "/v.sock",
@@ -444,8 +490,8 @@ pub fn list(host: &Host) -> io::Result<Vec<Vm>> {
 }
 
 /// The lowest user id no existing VM holds.
-fn free_uid(host: &Host) -> io::Result<u32> {
-    let taken: std::collections::HashSet<u32> = list(host)?.iter().map(|vm| vm.uid).collect();
+fn free_uid(existing: &[Vm]) -> io::Result<u32> {
+    let taken: std::collections::HashSet<u32> = existing.iter().map(|vm| vm.uid).collect();
     (UID_BASE..UID_BASE + UID_COUNT)
         .find(|uid| !taken.contains(uid))
         .ok_or_else(|| io::Error::other("no free VM user ids"))

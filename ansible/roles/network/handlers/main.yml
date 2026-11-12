@@ -1,0 +1,13 @@
+- name: Check netplan config
+  ansible.builtin.command: netplan generate
+  changed_when: false
+  listen: Apply netplan
+
+# Runs asynchronously so a brief network blip while links are reconfigured
+# doesn't fail the run; Wi-Fi is left as it was.
+- name: Apply netplan config
+  ansible.builtin.command: netplan apply
+  async: 120
+  poll: 5
+  changed_when: true
+  listen: Apply netplan
