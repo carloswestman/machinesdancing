@@ -24,9 +24,10 @@ out=${ROOTFS_OUT:-/var/lib/vms/images/rootfs}
 size=${ROOTFS_SIZE:-2G}
 mirror=${ROOTFS_MIRROR:-http://archive.ubuntu.com/ubuntu}
 
-# systemd as init, udev for /dev, CA certificates for TLS. Everything else
-# is added when something in the guest needs it.
-packages=systemd-sysv,udev,ca-certificates
+# systemd as init, udev for /dev, CA certificates for TLS, curl for HTTP
+# (agents need it, and the gateway's tests use it). Everything else is added
+# when something in the guest needs it.
+packages=systemd-sysv,udev,ca-certificates,curl
 
 here=$(cd "$(dirname "$0")" && pwd)
 

@@ -247,6 +247,11 @@ impl Vm {
     /// Creates the id, state directory, network and jail, without starting
     /// anything.
     fn prepare(host: &Host, spec: &Spec) -> io::Result<Vm> {
+        if let Some(network) = &spec.network {
+            network
+                .check()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+        }
         let kernel =
             fs::canonicalize(&spec.kernel).map_err(|e| with_path(e, "kernel", &spec.kernel))?;
         let rootfs = fs::canonicalize(&spec.rootfs)

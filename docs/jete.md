@@ -100,11 +100,11 @@ Done: time-to-ready is about 1.7 s, and `jete ls` lists VMs too.
 jete's part of networking, as set out in [architecture.md](architecture.md): a network link that
 reaches only the addresses it is given. Allowing by name, logging and credentials belong to the
 egress gateway, barre, a separate tool built next. To jete it is just a port that a VM's traffic
-is handed to (`--egress-proxy`, added with the gateway: [gateway.md](gateway.md#who-owns-what)).
+is handed to ([Egress proxy](#egress-proxy)).
 
 | Concern | Decision |
 |---|---|
-| Default | No network, as in M1: no network device at all. A VM gets one only when `jete run` is given `--allow` or `--host-port`. Deny by default (principle 4): a VM with a network reaches exactly what it was given. |
+| Default | No network, as in M1: no network device at all. A VM gets one only when `jete run` is given `--allow`, `--host-port` or `--egress-proxy` (see [Egress proxy](#egress-proxy)). Deny by default (principle 4): a VM with a network reaches exactly what it was given. |
 | Options | `--allow <address or CIDR>`: an IPv4 destination the VM may reach, any port and protocol (`1.1.1.1`, `140.82.112.0/20`); repeatable. `--host-port <port>`: a TCP or UDP port on the host side of the VM's link that the VM may reach (`53`, `443`); repeatable. `--dns <address>`: the resolver the guest uses; it must be reachable through one of the other two. |
 | Addressing | IPv4 only. Each VM gets a /30 from `10.200.0.0/16` (16,384 VMs), allocated under the same lock as its user id and recorded in `vm.json`: the host side is `.1`, the guest `.2`. The guest kernel configures `eth0` from the boot line (`ip=…`), so the guest runs no network daemon and time-to-ready should not grow. `/etc/resolv.conf` in the image points at `/proc/net/pnp`, where the kernel writes the resolver from `--dns`. |
 | Host side | A tap device per VM, `jete-<id>`, owned by the VM's user so the jailed Firecracker can open it, in the host's network namespace. Traffic is routed (not bridged) and masqueraded out of the host's default route. |
@@ -129,6 +129,24 @@ and time-to-ready with a network is reported next to M1's 1.7 s.
 
 Done: time-to-ready with a network is 1.7–1.8 s, the same as without one. The tests in
 `crates/jete/tests/net.rs` check each of the above, plus the host's SSH, the tailnet and other VMs.
+
+### Egress proxy
+
+Added for the egress gateway, barre ([gateway.md](gateway.md#who-owns-what)): a second way out,
+instead of the allowlist, never with it.
+
+| Concern | Decision |
+|---|---|
+| Option | `--egress-proxy <port>`. jete refuses it with `--allow`, `--host-port` or `--dns`, so a VM's egress has one owner. |
+| Firewall | Each VM's TCP to any address and port, and its UDP to port 53, are redirected to `<port>` on its own `.1` (nftables `redirect`, in a per-VM chain reached from a `prerouting` NAT chain). The proxy reads each connection's original destination with `SO_ORIGINAL_DST`. The input chain lets in only that port; nothing is forwarded. Other UDP, ICMP and IPv6 are dropped. |
+| Resolver | The guest's resolver is `.1`, though DNS sent anywhere ends up at the proxy. |
+| Fails closed | jete doesn't know what listens on the port. If nothing does, the VM reaches nothing. |
+| Older tables | The `prerouting` chain is added to a table created by an older jete, which lasts until the host reboots. |
+
+The tests use a stand-in listener: connections to the internet, a synthetic address, another host
+port and the LAN all arrive at it with their original destination; DNS to any resolver arrives;
+other UDP doesn't; with no listener nothing gets through; and `--egress-proxy` with `--allow` is
+refused.
 
 ## Open questions
 
