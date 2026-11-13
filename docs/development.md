@@ -65,7 +65,9 @@ JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots jailed VMs
 ```
 
 The network tests (`crates/jete/tests/net.rs`) also need IPv4 forwarding on the host (the
-`network` Ansible role) and internet access from it: a networked VM reaches `1.1.1.1`.
+`network` Ansible role) and internet access from it: a networked VM reaches `1.1.1.1`. barre's
+tests (`crates/barre/tests/vm.rs`) need the same, and `curl` in the guest image; they run barre
+inside the test, on its own port and policy directory, so an installed barre is not disturbed.
 
 ### Running `jete`
 
@@ -131,6 +133,13 @@ Installing `jete` on hemlock (release build, through `ansible/jete.yml`):
 
 ```bash
 scripts/install-jete
+```
+
+Installing barre, the egress gateway, on hemlock as a service, with `barre-vm` (release build,
+through `ansible/barre.yml`):
+
+```bash
+scripts/install-barre
 ```
 
 Changing hemlock itself:

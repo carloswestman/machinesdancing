@@ -61,7 +61,7 @@ Each tool does one job, is usable on its own and knows nothing about the layers 
 | Tool | Job | Knows nothing about | Status |
 |---|---|---|---|
 | **jete** | Runs VMs: images, isolation, disks (including extra read-only ones), a vsock channel per VM, and a network link that reaches only the addresses it's given. | Agents, messages, roles, workflows, GitHub. | M1 done. |
-| **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | Designed: [gateway.md](gateway.md). |
+| **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | G1 (by name) built: [gateway.md](gateway.md). |
 | **Bus** | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Not designed. |
 | **Control plane** | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
 

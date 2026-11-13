@@ -31,11 +31,12 @@ ansible-playbook site.yml --check --diff                # dry run: show what wou
 ansible-playbook site.yml                               # apply
 ansible-playbook upgrade.yml                            # upgrade all packages, report if a reboot is needed
 ../scripts/install-jete                                 # build jete on the Mac, install it (jete.yml)
+../scripts/install-barre                                # build barre on the Mac, install and run it (barre.yml)
 ```
 
 `site.yml` only applies configuration. It never upgrades packages; `upgrade.yml` does that, on
-demand. Nor does it install jete: `jete.yml` copies a build from the Mac, so it runs through
-`scripts/install-jete`, which builds a release first. Security updates also install automatically
+demand. Nor does it install jete or barre: `jete.yml` and `barre.yml` copy a build from the Mac, so they
+run through `scripts/install-jete` and `scripts/install-barre`, which build a release first. Security updates also install automatically
 every day (unattended-upgrades).
 
 The `access` role gives the admin user passwordless `sudo`, so runs need no password. On a new
@@ -83,3 +84,4 @@ The host joins under its inventory name. Tailscale SSH is not enabled: SSH acces
 | `firecracker` | Requires KVM, installs the pinned Firecracker release (checksum-verified) under `/opt/firecracker/<version>`, links `firecracker` and `jailer` into `/usr/local/bin`, creates `/var/lib/vms/images` and `/var/lib/vms/jailer`. |
 | `guest_images` | Installs the pinned guest kernel (checksum-verified) as `/var/lib/vms/images/kernels/vmlinux`, installs `mmdebstrap` for building root filesystems, creates `/var/lib/vms/images/rootfs`. |
 | `jete` | Installs the `jete` CLI from a release build on the Mac as `/usr/local/bin/jete`. Applied by `jete.yml`, not `site.yml`. |
+| `barre` | Installs barre, the egress gateway, from a release build on the Mac, and runs it as the `barre` service (its own user, no capabilities, systemd sandboxing) on port `barre_port` (15001). Creates `/run/barre/policies` at boot, and installs `barre-vm`, which starts a VM behind barre with a policy and removes both. Applied by `barre.yml`, not `site.yml`. |
