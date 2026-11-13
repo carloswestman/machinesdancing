@@ -61,7 +61,7 @@ Each tool does one job, is usable on its own and knows nothing about the layers 
 | Tool | Job | Knows nothing about | Status |
 |---|---|---|---|
 | **jete** | Runs VMs: images, isolation, disks (including extra read-only ones), a vsock channel per VM, and a network link that reaches only the addresses it's given. | Agents, messages, roles, workflows, GitHub. | M1 done. |
-| **Egress gateway** | Every connection a VM makes to the outside world: checks the destination's name against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | Not designed. |
+| **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | Designed: [gateway.md](gateway.md). |
 | **Bus** | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Not designed. |
 | **Control plane** | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
 
@@ -155,7 +155,7 @@ work repo, with Jira as a possible mirror.
 |---|---|---|
 | Host to VM, control | vsock, port 1024: `jete-agent` runs commands (jete's own channel). The control plane uses it for workflow actions in an agent's workspace. | Needs no network. Only the host can connect. |
 | Agent to bus | vsock, its own port. Inside the VM, a small **bus shim** presents the bus to the agent program as an **MCP server** (tools such as "send a message", "read my inbox", "update my ticket"). | The host knows which VM a vsock connection comes from, so the bus knows the sender's identity without trusting anything the agent says (principle 7). MCP is what agent programs already speak. |
-| VM to outside | A network link (jete's tap device) that reaches only the gateway. The gateway receives connections transparently: no proxy settings in the guest. | Enforced by the firewall, so an agent that ignores proxy settings still can't get around it (principle 1). |
+| VM to outside | A network link (jete's tap device) whose traffic jete hands, all of it, to the gateway's port. jete owns isolation, the gateway owns the policy; neither reads the other's state ([gateway.md](gateway.md#who-owns-what)). No proxy settings in the guest. | Enforced by the firewall, so an agent that ignores proxy settings still can't get around it (principle 1). |
 | System to external systems | Connectors, with credentials held by the control plane and the gateway, never by agents. Branch protection keeps merges for the human. | Principles 7, 8. |
 | Configuration | Files in the instance config repo, read by the control plane. | Declarative (principle 15). |
 
@@ -178,8 +178,9 @@ available, and the gateway still limits where it can be used.
 
 The VM's network link reaches only the gateway; the gateway decides what goes further.
 
-- **By name, not address.** For HTTPS it reads the name the client asks for (TLS SNI), and for
-  HTTP the `Host` header, then checks it against the VM's allowlist. It doesn't decrypt TLS, so
+- **By name, not address.** The gateway answers DNS with an address that stands for the name, so
+  every connection, whatever the protocol, is decided by the name and port it was made for. For
+  HTTPS it also checks the name in the handshake (TLS SNI), and for HTTP the `Host` header. It doesn't decrypt TLS, so
   rules apply to whole hosts, not URL paths, until something needs more.
 - **It answers the guest's DNS too.** Allowed names resolve; anything else is refused without
   being forwarded, so DNS can't be used to leak data. The gateway decides each connection by the
@@ -189,8 +190,8 @@ The VM's network link reaches only the gateway; the gateway decides what goes fu
   adds the credential to requests. That needs it to terminate TLS for those hosts with a
   certificate the guest image trusts; for every other host it only passes bytes through.
 - **Everything is logged** (principle 16).
-- **Non-HTTP traffic** (git over SSH, raw TCP) is not supported by name. Where a role needs it,
-  jete's address allowlist lets it through to specific addresses.
+- **One owner.** A VM's egress goes either entirely through the gateway or entirely through jete's
+  address allowlist (for development and tests), never split between them.
 
 ## The bus
 
@@ -221,7 +222,7 @@ The aim is a thin end-to-end slice early (one worker, one ticket, one pull reque
 | Step | Delivers |
 |---|---|
 | 1. jete M2: Network | A VM's network link reaches only the addresses it's given, and nothing on the host, the LAN, the tailnet or other VMs. No allowlist by name in jete: that is the gateway's job. |
-| 2. Egress gateway | Allowlist by name, logging. Then credential injection. |
+| 2. Egress gateway | barre: allowlist by name and port, logging. Then credential injection. |
 | 3. One agent in a VM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through the gateway, with skills on a read-only disk, doing a task started by hand. |
 | 4. Bus | The shim and the host bus, with channels and schemas from configuration. |
 | 5. Control plane | The work repo, the workflow engine with its first rules, the GitHub connector, spawning on tickets. The first end-to-end slice. |
@@ -229,7 +230,7 @@ The aim is a thin end-to-end slice early (one worker, one ticket, one pull reque
 
 ## Open questions
 
-1. **Names.** jete is named; the gateway, the bus and the control plane are not.
+1. **Names.** jete and the gateway (barre) are named; the bus and the control plane are not.
 2. **Events on hemlock.** Webhooks need a reachable endpoint; hemlock is on a home network.
    Options: polling, a relay, or GitHub Actions calling in over Tailscale.
 3. **Model access.** Claude Code with a Claude subscription, or any agent program with an API key.
