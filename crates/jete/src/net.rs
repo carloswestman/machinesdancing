@@ -11,6 +11,11 @@
 //! Everything else from the VM is dropped, including IPv6, connections to
 //! other VMs, and connections into the VM from anywhere.
 //!
+//! A VM can instead have an egress proxy: a port on the host that receives
+//! all of its TCP and DNS, whatever the destination, redirected to its own
+//! `.1`. The proxy reads the original destination from the connection
+//! (`SO_ORIGINAL_DST`) and decides. Nothing from the VM is forwarded.
+//!
 //! The guest kernel configures its interface from the boot line, so the
 //! guest runs no network daemon.
 
@@ -66,6 +71,20 @@ table inet jete {
     chain postrouting {
         type nat hook postrouting priority srcnat; policy accept;
         ip saddr 10.200.0.0/16 oifname != "jete-*" masquerade
+    }
+}
+"#;
+
+/// The part of the base table that redirects VMs' traffic to their egress
+/// proxies. Separate from [`BASE_TABLE`] so a table created by an older jete,
+/// which lasts until the host reboots, gets it too.
+const PREROUTING: &str = r#"
+table inet jete {
+    map prerouting_vms { type ifname : verdict; }
+
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+        iifname "jete-*" iifname vmap @prerouting_vms
     }
 }
 "#;
@@ -137,6 +156,23 @@ pub struct NetSpec {
     pub host_ports: Vec<u16>,
     /// The resolver the guest uses. Reachable only if allowed above.
     pub dns: Option<Ipv4Addr>,
+    /// A port on the host side of its link that receives all of its TCP
+    /// and DNS instead. Excludes the three above.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub egress_proxy: Option<u16>,
+}
+
+impl NetSpec {
+    /// Rejects a spec that mixes the two ways out: a VM's egress has one
+    /// owner, jete's allowlist or the proxy.
+    pub fn check(&self) -> Result<(), String> {
+        if self.egress_proxy.is_some()
+            && (!self.allow.is_empty() || !self.host_ports.is_empty() || self.dns.is_some())
+        {
+            return Err("an egress proxy excludes allowed addresses, host ports and DNS".into());
+        }
+        Ok(())
+    }
 }
 
 /// A VM's network, as recorded in its `vm.json`.
@@ -179,10 +215,19 @@ impl Network {
     /// /proc/net/pnp, which the image's /etc/resolv.conf points at.
     pub fn boot_arg(&self) -> String {
         let mut arg = format!("ip={}::{}:255.255.255.252::eth0:off", self.guest, self.host);
-        if let Some(dns) = self.spec.dns {
+        if let Some(dns) = self.resolver() {
             arg.push_str(&format!(":{dns}"));
         }
         arg
+    }
+
+    /// The guest's resolver. Behind a proxy it is the proxy, though DNS sent
+    /// anywhere ends up there.
+    fn resolver(&self) -> Option<Ipv4Addr> {
+        match self.spec.egress_proxy {
+            Some(_) => Some(self.host),
+            None => self.spec.dns,
+        }
     }
 
     fn id(&self) -> &str {
@@ -205,8 +250,12 @@ impl Network {
         // From the VM to the host itself: only its host ports, on its link.
         r += &format!("add chain {TABLE} vm-{id}-input\n");
         r += &format!("add rule {TABLE} vm-{id}-input ip saddr != {guest} drop\n");
-        if !self.spec.host_ports.is_empty() {
-            let ports: Vec<String> = self.spec.host_ports.iter().map(u16::to_string).collect();
+        let host_ports = match self.spec.egress_proxy {
+            Some(port) => vec![port],
+            None => self.spec.host_ports.clone(),
+        };
+        if !host_ports.is_empty() {
+            let ports: Vec<String> = host_ports.iter().map(u16::to_string).collect();
             r += &format!(
                 "add rule {TABLE} vm-{id}-input ip daddr {host} meta l4proto {{ tcp, udp }} th dport {{ {} }} accept\n",
                 ports.join(", ")
@@ -215,6 +264,20 @@ impl Network {
         r += &format!("add rule {TABLE} vm-{id}-input drop\n");
         r += &format!("add element {TABLE} forward_vms {{ \"{tap}\" : jump vm-{id}-forward }}\n");
         r += &format!("add element {TABLE} input_vms {{ \"{tap}\" : jump vm-{id}-input }}\n");
+        // Behind a proxy: its TCP to anywhere, and its DNS, go to the proxy
+        // on its `.1`, where the input chain lets them in.
+        if let Some(port) = self.spec.egress_proxy {
+            r += &format!("add chain {TABLE} vm-{id}-prerouting\n");
+            r += &format!(
+                "add rule {TABLE} vm-{id}-prerouting ip saddr {guest} meta l4proto tcp redirect to :{port}\n"
+            );
+            r += &format!(
+                "add rule {TABLE} vm-{id}-prerouting ip saddr {guest} udp dport 53 redirect to :{port}\n"
+            );
+            r += &format!(
+                "add element {TABLE} prerouting_vms {{ \"{tap}\" : jump vm-{id}-prerouting }}\n"
+            );
+        }
         r
     }
 
@@ -223,12 +286,20 @@ impl Network {
     fn teardown_rules(&self) -> String {
         let id = self.id();
         let tap = &self.tap;
-        format!(
+        let mut r = format!(
             "destroy element {TABLE} forward_vms {{ \"{tap}\" }}\n\
              destroy element {TABLE} input_vms {{ \"{tap}\" }}\n\
              destroy chain {TABLE} vm-{id}-forward\n\
              destroy chain {TABLE} vm-{id}-input\n"
-        )
+        );
+        // Only a proxied VM's table is sure to have the map.
+        if self.spec.egress_proxy.is_some() {
+            r += &format!(
+                "destroy element {TABLE} prerouting_vms {{ \"{tap}\" }}\n\
+                 destroy chain {TABLE} vm-{id}-prerouting\n"
+            );
+        }
+        r
     }
 
     /// Creates the tap, owned by `uid`, and the firewall rules. Call it with
@@ -236,6 +307,9 @@ impl Network {
     pub fn create(&self, uid: u32) -> io::Result<()> {
         if !table_exists()? {
             nft(BASE_TABLE)?;
+        }
+        if !prerouting_exists()? {
+            nft(PREROUTING)?;
         }
         let uid = uid.to_string();
         run(
@@ -296,6 +370,10 @@ fn table_exists() -> io::Result<bool> {
     Ok(output(NFT, &["list", "tables", "inet"])?
         .lines()
         .any(|line| line.trim() == "table inet jete"))
+}
+
+fn prerouting_exists() -> io::Result<bool> {
+    Ok(output(NFT, &["list", "table", "inet", "jete"])?.contains("map prerouting_vms"))
 }
 
 /// Applies nft commands as one transaction: all or nothing.
@@ -428,7 +506,7 @@ mod tests {
         let spec = NetSpec {
             allow: vec![cidr("1.1.1.1"), cidr("140.82.112.0/20")],
             host_ports: vec![443, 53, 443],
-            dns: None,
+            ..NetSpec::default()
         };
         let rules = Network::new("0000000a", 0, &spec).rules();
         for line in [
@@ -456,5 +534,84 @@ mod tests {
     fn no_host_ports_means_no_host_rule() {
         let rules = Network::new("0000000a", 0, &NetSpec::default()).rules();
         assert!(!rules.contains("dport"), "{rules}");
+    }
+
+    fn proxied() -> Network {
+        let spec = NetSpec {
+            egress_proxy: Some(15001),
+            ..NetSpec::default()
+        };
+        Network::new("0000000a", 0, &spec)
+    }
+
+    #[test]
+    fn a_proxied_vm_sends_its_tcp_and_dns_to_the_proxy_and_nothing_further() {
+        let rules = proxied().rules();
+        for line in [
+            "add rule inet jete vm-0000000a-prerouting ip saddr 10.200.0.2 meta l4proto tcp redirect to :15001",
+            "add rule inet jete vm-0000000a-prerouting ip saddr 10.200.0.2 udp dport 53 redirect to :15001",
+            "add element inet jete prerouting_vms { \"jete-0000000a\" : jump vm-0000000a-prerouting }",
+            "add rule inet jete vm-0000000a-input ip daddr 10.200.0.1 meta l4proto { tcp, udp } th dport { 15001 } accept",
+            "add rule inet jete vm-0000000a-forward drop",
+        ] {
+            assert!(
+                rules.lines().any(|l| l == line),
+                "missing {line:?} in\n{rules}"
+            );
+        }
+        assert!(
+            !rules.contains("-forward ip daddr"),
+            "forwards something:\n{rules}"
+        );
+        let teardown = proxied().teardown_rules();
+        assert!(teardown.contains("destroy chain inet jete vm-0000000a-prerouting"));
+    }
+
+    #[test]
+    fn a_vm_without_a_proxy_has_no_redirect() {
+        let net = Network::new("0000000a", 0, &NetSpec::default());
+        assert!(!net.rules().contains("prerouting"));
+        assert!(!net.teardown_rules().contains("prerouting"));
+    }
+
+    #[test]
+    fn a_proxied_vm_resolves_through_its_host_side() {
+        assert_eq!(
+            proxied().boot_arg(),
+            "ip=10.200.0.2::10.200.0.1:255.255.255.252::eth0:off:10.200.0.1"
+        );
+    }
+
+    #[test]
+    fn a_proxy_excludes_the_other_options() {
+        let proxy = NetSpec {
+            egress_proxy: Some(15001),
+            ..NetSpec::default()
+        };
+        assert!(proxy.check().is_ok());
+        for spec in [
+            NetSpec {
+                allow: vec![cidr("1.1.1.1")],
+                ..proxy.clone()
+            },
+            NetSpec {
+                host_ports: vec![53],
+                ..proxy.clone()
+            },
+            NetSpec {
+                dns: Some("1.1.1.1".parse().unwrap()),
+                ..proxy.clone()
+            },
+        ] {
+            assert!(spec.check().is_err(), "{spec:?} accepted");
+        }
+    }
+
+    #[test]
+    fn records_without_a_proxy_read_and_write_as_before() {
+        let json = r#"{"allow":["1.1.1.1"],"host_ports":[],"dns":null}"#;
+        let spec: NetSpec = serde_json::from_str(json).unwrap();
+        assert_eq!(spec.egress_proxy, None);
+        assert_eq!(serde_json::to_string(&spec).unwrap(), json);
     }
 }

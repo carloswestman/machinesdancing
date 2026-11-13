@@ -10,7 +10,7 @@
 //! a refused connection would mean the packet got through.
 
 use std::io::Read;
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream, UdpSocket};
 use std::process::Command;
 use std::time::Duration;
 
@@ -46,6 +46,7 @@ fn spec(allow: &[&str], host_ports: &[u16], dns: Option<&str>) -> Option<NetSpec
         allow: allow.iter().map(|s| s.parse::<Cidr>().unwrap()).collect(),
         host_ports: host_ports.to_vec(),
         dns: dns.map(|s| s.parse().unwrap()),
+        egress_proxy: None,
     })
 }
 
@@ -143,6 +144,90 @@ async fn a_networked_vm_reaches_only_what_it_is_given() {
     // Removed: no tap or rules left.
     vm.remove().unwrap();
     assert!(!net.exists().unwrap(), "network left behind");
+}
+
+#[tokio::test]
+#[ignore = "needs root and forwarding; see the file comment"]
+async fn a_proxied_vm_reaches_only_its_proxy() {
+    const PROXY: u16 = 47002;
+    const OTHER: u16 = 47003;
+    let guard = start(Some(NetSpec {
+        egress_proxy: Some(PROXY),
+        ..NetSpec::default()
+    }))
+    .await;
+    let vm = &guard.0;
+    let net = vm.network.clone().unwrap();
+
+    let (_, resolv) = exec(vm, &["cat", "/etc/resolv.conf"]).await;
+    assert!(
+        resolv.contains(&format!("nameserver {}", net.host)),
+        "{resolv:?}"
+    );
+
+    // Every TCP connection, wherever it was going, arrives at the proxy with
+    // its original destination: the internet, a synthetic address, another
+    // port on the host, the LAN.
+    let proxy = TcpListener::bind((net.host, PROXY)).unwrap();
+    let (_, gateway) = host_route();
+    for dest in [
+        SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 443),
+        SocketAddrV4::new(Ipv4Addr::new(198, 18, 0, 7), 22),
+        SocketAddrV4::new(net.host, OTHER),
+        SocketAddrV4::new(gateway, 80),
+    ] {
+        let script = format!("echo hello > /dev/tcp/{}/{}", dest.ip(), dest.port());
+        let (code, _) = exec(vm, &["timeout", "3", "bash", "-c", &script]).await;
+        assert_eq!(code, 0, "connecting to {dest}");
+        let (mut conn, peer) = proxy.accept().unwrap();
+        assert_eq!(peer.ip(), net.guest);
+        assert_eq!(rustix::net::sockopt::ip_original_dst(&conn).unwrap(), dest);
+        let mut got = String::new();
+        conn.read_to_string(&mut got).unwrap();
+        assert_eq!(got, "hello\n");
+    }
+
+    // DNS to any resolver arrives too; other UDP doesn't reach the host.
+    let dns = UdpSocket::bind((net.host, PROXY)).unwrap();
+    let other = UdpSocket::bind((net.host, OTHER)).unwrap();
+    for sock in [&dns, &other] {
+        sock.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    }
+    exec(vm, &["bash", "-c", "echo query > /dev/udp/9.9.9.9/53"]).await;
+    let mut buf = [0; 64];
+    let (n, peer) = dns.recv_from(&mut buf).unwrap();
+    assert_eq!((&buf[..n], peer.ip()), (&b"query\n"[..], net.guest.into()));
+    let script = format!("echo other > /dev/udp/{}/{OTHER}", net.host);
+    exec(vm, &["bash", "-c", &script]).await;
+    assert!(
+        other.recv_from(&mut buf).is_err(),
+        "other UDP reached the host"
+    );
+
+    // With nothing listening, nothing gets through: it fails closed.
+    drop(proxy);
+    assert_ne!(
+        connect(vm, "1.1.1.1", 443).await,
+        0,
+        "reached out without a proxy"
+    );
+
+    vm.remove().unwrap();
+    assert!(!net.exists().unwrap(), "network left behind");
+}
+
+#[tokio::test]
+#[ignore = "needs root; see the file comment"]
+async fn a_proxy_cannot_be_mixed_with_an_allowlist() {
+    let spec = Spec {
+        network: Some(NetSpec {
+            egress_proxy: Some(47002),
+            ..spec(&["1.1.1.1"], &[], None).unwrap()
+        }),
+        ..Spec::default()
+    };
+    let err = Vm::start(&Host::default(), &spec).await.unwrap_err();
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput, "{err}");
 }
 
 #[tokio::test]

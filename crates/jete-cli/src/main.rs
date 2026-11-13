@@ -45,8 +45,8 @@ enum Command {
         #[arg(long, default_value_t = 512)]
         mem: u32,
         /// Give the VM a network that may reach this IPv4 address or CIDR
-        /// block, any port. Repeatable. Without --allow or --host-port, the
-        /// VM has no network at all.
+        /// block, any port. Repeatable. Without --allow, --host-port or
+        /// --egress-proxy, the VM has no network at all.
         #[arg(long, value_name = "ADDRESS")]
         allow: Vec<Cidr>,
         /// Give the VM a network that may reach this TCP or UDP port on the
@@ -57,6 +57,11 @@ enum Command {
         /// --host-port
         #[arg(long, value_name = "ADDRESS")]
         dns: Option<Ipv4Addr>,
+        /// Give the VM a network whose TCP and DNS, to any destination, all
+        /// go to this port on the host side of its link, and nothing else
+        /// leaves it. The proxy listening there decides what goes further.
+        #[arg(long, value_name = "PORT", conflicts_with_all = ["allow", "host_port", "dns"])]
+        egress_proxy: Option<u16>,
         /// Print the VM's record as JSON
         #[arg(long)]
         json: bool,
@@ -115,9 +120,10 @@ async fn run(command: Command) -> io::Result<i32> {
             allow,
             host_port,
             dns,
+            egress_proxy,
             json,
         } => {
-            let network = if allow.is_empty() && host_port.is_empty() {
+            let network = if allow.is_empty() && host_port.is_empty() && egress_proxy.is_none() {
                 if dns.is_some() {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
@@ -130,6 +136,7 @@ async fn run(command: Command) -> io::Result<i32> {
                     allow,
                     host_ports: host_port,
                     dns,
+                    egress_proxy,
                 })
             };
             let defaults = Spec::default();

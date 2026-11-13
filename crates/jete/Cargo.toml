@@ -15,4 +15,5 @@ tokio.workspace = true
 
 [dev-dependencies]
 jete-agent.workspace = true
+rustix = { workspace = true, features = ["net"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
