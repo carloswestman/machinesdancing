@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# claude-vm: runs Claude Code in a VM behind barre, from the Mac.
+#
+#   scripts/claude-vm PROMPT             boot a VM and run PROMPT in it
+#   scripts/claude-vm --vm ID PROMPT     run PROMPT in a VM it booted before
+#
+# The VM may reach api.anthropic.com and whatever CLAUDE_VM_ALLOW adds, as
+# barre rules. Claude Code runs there as the unprivileged user `agent`,
+# without permission prompts: the VM and barre are what contain it. The VM
+# is left running; prints its id at the end. Remove it with
+# `ssh hemlock sudo barre-vm rm ID`.
+#
+# The OAuth token (from `claude setup-token`, on your subscription) is read
+# from CLAUDE_TOKEN_FILE and sent over ssh's stdin into Claude Code's
+# environment: never on a command line, never written to the host or the
+# VM's disk.
+#
+# Environment:
+#   JETE_HOST          SSH host (default: hemlock)
+#   CLAUDE_TOKEN_FILE  default: ~/.config/machinesdancing/claude-token
+#   CLAUDE_VM_ALLOW    more barre rules, space-separated, e.g.
+#                      "github.com:22,443 *.githubusercontent.com"
+
+set -euo pipefail
+
+host=${JETE_HOST:-hemlock}
+token=${CLAUDE_TOKEN_FILE:-$HOME/.config/machinesdancing/claude-token}
+
+usage() {
+  echo "usage: claude-vm [--vm ID] PROMPT" >&2
+  exit 2
+}
+
+id=""
+if [[ ${1:-} == --vm ]]; then
+  [[ $# -ge 2 ]] || usage
+  id=$2
+  shift 2
+fi
+[[ $# -eq 1 ]] || usage
+prompt=$1
+
+if [[ ! -r $token || ! -s $token ]]; then
+  echo "claude-vm: no token in $token; run \`claude setup-token\` and save it there" >&2
+  exit 1
+fi
+
+if [[ -z $id ]]; then
+  # Split on spaces only: a rule like *.example.com must not glob here.
+  read -ra extra <<<"${CLAUDE_VM_ALLOW:-}"
+  rules=(api.anthropic.com ${extra[@]+"${extra[@]}"})
+  id=$(ssh "$host" "sudo barre-vm run $(printf '%q ' "${rules[@]}")")
+fi
+
+# Runs in the VM, as `agent`: the token is the first line of stdin, with or
+# without a newline after it.
+inner='cd &&
+  { IFS= read -r CLAUDE_CODE_OAUTH_TOKEN || [[ -n $CLAUDE_CODE_OAUTH_TOKEN ]]; } &&
+  export CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_AUTOUPDATER=1 &&
+  exec claude -p --dangerously-skip-permissions "$1" </dev/null'
+status=0
+ssh "$host" "sudo jete exec $(printf %q "$id") -- runuser -u agent -- bash -c $(printf %q "$inner") claude-vm $(printf %q "$prompt")" <"$token" || status=$?
+
+if [[ $status -ne 0 ]]; then
+  echo "claude-vm: failed with exit code $status" >&2
+fi
+echo "vm: $id" >&2
+exit $status

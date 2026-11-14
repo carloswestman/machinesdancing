@@ -10,7 +10,7 @@ Code is written and compiled on the Mac and runs on hemlock. Hosts are configure
 ## Mac setup
 
 Prerequisites: [Homebrew](https://brew.sh), and SSH access to hemlock with your key (`ssh hemlock`
-works without a password; see [`ansible/README.md`](../ansible/README.md)).
+works without a password; see [`ansible/README.md`](../../ansible/README.md)).
 
 1. **Install the tools:**
 
@@ -47,7 +47,7 @@ works without a password; see [`ansible/README.md`](../ansible/README.md)).
   so building for macOS is neither possible nor useful.
 - **Static binaries.** musl links everything in, so a binary runs on hemlock and inside any guest
   image as-is.
-- **Tests run on hemlock.** `.cargo/config.toml` sets [`scripts/hemlock-run`](../scripts/hemlock-run)
+- **Tests run on hemlock.** `.cargo/config.toml` sets [`scripts/hemlock-run`](../../scripts/hemlock-run)
   as the cargo *runner*. It copies each compiled test or binary to hemlock over SSH, runs it there
   with the same arguments, streams the output back and passes the exit code through. `cargo test`
   and `cargo run` on the Mac therefore execute on hemlock.
@@ -97,7 +97,7 @@ jete ls
 
 ### Running barre
 
-barre, the egress gateway ([barre.md](barre.md)), runs on hemlock as the `barre` service, installed
+barre, the egress gateway ([barre.md](../design/barre.md)), runs on hemlock as the `barre` service, installed
 with `scripts/install-barre`. That also installs `barre-vm` in `/usr/local/bin`, a short script
 (source: `ansible/roles/barre/templates/barre-vm.j2`) that boots a VM behind the service with a
 policy, and removes both:
@@ -132,6 +132,10 @@ barre --policies /run/barre-dev allow $addr --vm $id example.com
 jete exec $id -- curl -sI https://example.com
 jete rm $id
 ```
+
+### Running Claude Code in a VM
+
+See [claude-code.md](claude-code.md).
 
 ### Runner settings
 
@@ -192,4 +196,4 @@ ansible-playbook site.yml                  # apply
 
 - Work on a branch and open a pull request. Nothing goes to `main` directly.
 - Hosts change only through `ansible/`. Never edit configuration on hemlock by hand.
-- Secrets never live in the repo. See *Environment variables* in [`ansible/README.md`](../ansible/README.md).
+- Secrets never live in the repo. See *Environment variables* in [`ansible/README.md`](../../ansible/README.md).
