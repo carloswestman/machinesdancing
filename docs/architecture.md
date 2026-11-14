@@ -3,9 +3,10 @@
 The big picture: which tools make up machinesdancing, what each one owns, how they connect, where
 things are stored, and the order we build them in. [PRINCIPLES.md](../PRINCIPLES.md) says what
 must hold; this says how the pieces fit together to make it hold. Each tool gets its own design
-doc when we build it, like [jete.md](design/jete.md).
+doc when we build it, like [jete.md](design/jete.md) and [barre.md](design/barre.md).
 
-Only jete exists so far. Everything else here is a starting design, to evolve as we build.
+jete and barre exist, and Claude Code runs in a VM behind them (steps 1 to 3 of the
+[build order](#build-order)). mime and regisseur are a starting design, to evolve as we build them.
 
 ## What we are building
 
@@ -60,10 +61,14 @@ Each tool does one job, is usable on its own and knows nothing about the layers 
 
 | Tool | Job | Knows nothing about | Status |
 |---|---|---|---|
-| **jete** | Runs VMs: images, isolation, disks (including extra read-only ones), a vsock channel per VM, and a network link that reaches only the addresses it's given. | Agents, messages, roles, workflows, GitHub. | M1 done. |
-| **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | G1 (by name) built: [barre.md](design/barre.md). |
-| **Bus** | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Not designed. |
-| **Control plane** | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
+| **jete** | Runs VMs: images, isolation, disks (including extra read-only ones), a vsock channel per VM, and a network link that reaches only the addresses it's given. | Agents, messages, roles, workflows, GitHub. | M1 and M2 done, with the egress proxy: [jete.md](design/jete.md). |
+| **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | G1 (by name) done: [barre.md](design/barre.md). |
+| **Agent message bus** (mime) | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Not designed. |
+| **Control plane** (regisseur) | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
+
+The bus and the control plane are named from ballet, like jete and barre. The bus is mime (see
+[The bus](#the-bus)). The control plane is regisseur: in a ballet company, the régisseur runs the
+performances, keeps the repertoire and calls the cues, so each show runs as set.
 
 Whether the control plane ships as part of jete's daemon or as its own service is left open. What
 is fixed is the direction of dependency: the control plane uses jete's library interface, and jete
@@ -195,6 +200,9 @@ The VM's network link reaches only the gateway; the gateway decides what goes fu
 
 ## The bus
 
+The bus is named mime, from ballet like jete and barre: mime is the fixed vocabulary of gestures
+dancers use to talk to each other on stage, where a gesture outside it means nothing.
+
 - **Channels are configuration.** Who may send what type of message to whom. Anything else is
   rejected (principles 4, 5).
 - **Messages are typed.** Each type has a schema. A message that breaks its schema or a rule is
@@ -219,27 +227,26 @@ checks it.
 
 The aim is a thin end-to-end slice early (one worker, one ticket, one pull request), then widening.
 
-| Step | Delivers |
-|---|---|
-| 1. jete M2: Network | A VM's network link reaches only the addresses it's given, and nothing on the host, the LAN, the tailnet or other VMs. No allowlist by name in jete: that is the gateway's job. |
-| 2. Egress gateway | barre: allowlist by name and port, logging. Then credential injection. |
-| 3. One agent in a VM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through the gateway, with skills on a read-only disk, doing a task started by hand. |
-| 4. Bus | The shim and the host bus, with channels and schemas from configuration. |
-| 5. Control plane | The work repo, the workflow engine with its first rules, the GitHub connector, spawning on tickets. The first end-to-end slice. |
-| 6. Widening | More rules, the Jira connector, jete's daemon and speed (snapshots, a warm pool) when spawning on demand needs them. |
+| Step | Delivers | Status |
+|---|---|---|
+| 1. jete M2: Network | A VM's network link reaches only the addresses it's given, and nothing on the host, the LAN, the tailnet or other VMs. No allowlist by name in jete: that is the gateway's job. | Done. |
+| 2. Egress gateway | barre: allowlist by name and port, logging. Then credential injection. | By name (G1) done; credentials (G2) next. |
+| 3. One agent in a VM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through the gateway, with skills on a read-only disk, doing a task started by hand. | Started: Claude Code in the guest image, behind barre, running prompts started by hand ([claude-code.md](guides/claude-code.md)). No skills disk or real task yet. |
+| 4. Bus (mime) | The shim and the host bus, with channels and schemas from configuration. | Not started. |
+| 5. Control plane (regisseur) | The work repo, the workflow engine with its first rules, the GitHub connector, spawning on tickets. The first end-to-end slice. | Not started. |
+| 6. Widening | More rules, the Jira connector, jete's daemon and speed (snapshots, a warm pool) when spawning on demand needs them. | Not started. |
 
 ## Open questions
 
-1. **Names.** jete and the gateway (barre) are named; the bus and the control plane are not.
-2. **Events on hemlock.** Webhooks need a reachable endpoint; hemlock is on a home network.
+1. **Events on hemlock.** Webhooks need a reachable endpoint; hemlock is on a home network.
    Options: polling, a relay, or GitHub Actions calling in over Tailscale.
-3. **Model access.** For now, Claude Code with a Claude subscription, through a token from
+2. **Model access.** For now, Claude Code with a Claude subscription, through a token from
    `claude setup-token` that the VM holds (`scripts/claude-vm`). Later, an API key the gateway adds
    (G2), so the VM holds none. Check the subscription's terms before VMs run work for anyone else.
-4. **Where the control plane runs.** Inside jete's daemon or as its own service (see *The tools*).
-5. **Ticket format.** The file format of a ticket in the work repo, and how its state changes are
+3. **Where the control plane runs.** Inside jete's daemon or as its own service (see *The tools*).
+4. **Ticket format.** The file format of a ticket in the work repo, and how its state changes are
    committed.
-6. **One host or many.** Everything above runs on hemlock. Nothing prevents more hosts later, but
+5. **One host or many.** Everything above runs on hemlock. Nothing prevents more hosts later, but
    nothing plans for them yet.
-7. **The human's view.** How the record of messages and decisions is shown (principle 16): the code
+6. **The human's view.** How the record of messages and decisions is shown (principle 16): the code
    host alone, or a dashboard.
