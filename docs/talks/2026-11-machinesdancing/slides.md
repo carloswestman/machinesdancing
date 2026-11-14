@@ -53,7 +53,7 @@ showing it here."
 
 ---
 
-# Why: the work
+# Why: the official reason
 
 - More than a year of coding with AI agents, side by side in **tmux panes**.
 - It works. But to let them do more, with less friction and more output, they need **security and strict control**, held from outside the agent.
