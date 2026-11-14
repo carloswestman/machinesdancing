@@ -57,6 +57,7 @@ showing it here."
 
 - More than a year of coding with AI agents, side by side in **tmux panes**.
 - It works. But to let them do more, with less friction and more output, they need **security and strict control**, held from outside the agent.
+- Agents with access to production, or to your laptop's keys, is a **terrible idea**.
 
 <!--
 The practical reason. Today an agent's limits are mostly instructions and permission prompts, and every
