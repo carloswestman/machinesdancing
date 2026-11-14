@@ -1,0 +1,11 @@
+$ scripts/claude-vm "Say hello to the BELUG folks!"
+ready in 1675 ms
+Hello, BELUG folks! 👋 Hope the meetings, the tinkering, and the Linux wrangling are all going well. Happy hacking from me and the user!
+vm: 39195192
+
+(5.8 s end to end on the Mac, boot included)
+
+$ ssh hemlock journalctl -u barre -o cat | grep 39195192 | jq -c 'select(.event=="connect") | {name, decision}'
+{"name":"api.anthropic.com","decision":"allow"}
+{"name":"api.anthropic.com","decision":"allow"}
+{"name":"api.anthropic.com","decision":"allow"}

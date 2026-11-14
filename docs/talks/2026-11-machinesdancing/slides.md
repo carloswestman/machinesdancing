@@ -579,16 +579,36 @@ Fallback: demos/2-egress-policy.txt, "demo 3" part.
 
 # An agent inside: Claude Code
 
-- The guest image includes **Claude Code**, run as an unprivileged user `agent`.
-- `scripts/claude-vm "PROMPT"` boots a µVM that may reach **`api.anthropic.com`** and nothing else, then runs the prompt.
-- No permission prompts inside: the µVM and barre contain it, not the agent's own checks.
-- The subscription token goes over SSH's stdin into its environment: never on a command line or a disk.
+<div class="text-sm">
 
-**Status: working, by hand.** Prompts run on a real subscription. barre's log shows these µVMs reaching `api.anthropic.com` and nothing else. Next: a real task, with a repo and a pull request.
+- **Claude Code** in the guest image, run as an unprivileged user `agent`
+- Its µVM may reach **`api.anthropic.com`** and nothing else; no permission prompts inside
+- The subscription token goes over SSH's stdin: never on a command line or a disk
+
+</div>
+
+<div class="wrap-code pt-2">
+
+```text
+$ scripts/claude-vm "Say hello to the BELUG folks!"
+ready in 1675 ms
+Hello, BELUG folks! 👋 Hope the meetings, the tinkering, and the Linux wrangling are all going well. Happy hacking from me and the user!
+vm: 39195192
+```
+
+</div>
+
+<div class="text-sm pt-2">
+
+5.8 s end to end, boot included. barre's log for that µVM: three connections, all to `api.anthropic.com`.
+**Working, by hand.** Next: a real task, with a repo and a pull request.
+
+</div>
 
 <!--
-Optional live demo (it works with a real token; keep the token file off screen):
-  scripts/claude-vm "what is in your home directory?"
+The output shown is a real run (demos/3-claude-code.txt). To run it live, keep the token file off
+screen; it takes about 6 s:
+  scripts/claude-vm "Say hello to the BELUG folks!"
   ssh hemlock journalctl -u barre -o cat | grep ID     # api.anthropic.com, and nothing else
 
 Honest caveat: the token is inside the µVM while Claude Code runs, so anything in that µVM could use
@@ -611,7 +631,7 @@ Sources: images/rootfs/build, scripts/claude-vm, docs/guides/claude-code.md.
 | Host, LAN, tailnet, other µVMs unreachable | Implemented, tested | jete `tests/net.rs` (6) |
 | DNS and egress by name, logged | Implemented, tested | barre `tests/vm.rs` (2), 21 unit tests |
 | IPv6, ICMP, spoofed sources dropped | Implemented, **not tested** | nftables rules in `net.rs` |
-| Claude Code in a µVM, behind barre | Implemented, tested by hand | `scripts/claude-vm`; barre's log |
+| Claude Code in a µVM, behind barre | Implemented, tested by hand | `scripts/claude-vm`; reaches only `api.anthropic.com` |
 | Credentials kept out of µVMs | **Planned** | barre phase 2 |
 | Daemon, snapshots; mime; regisseur | **Planned** | jete M3, M4; not designed |
 
