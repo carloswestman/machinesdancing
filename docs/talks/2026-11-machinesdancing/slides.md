@@ -59,6 +59,12 @@ showing it here."
 - It works. But to let them do more, with less friction and more output, they need **security and strict control**, held from outside the agent.
 - Agents with access to production, or to your laptop's keys, is a **terrible idea**.
 
+<div class="pt-6">
+
+An **open-source** project for running AI agents **on-prem**, fast and secure, seems like a good niche.
+
+</div>
+
 <!--
 The practical reason. Today an agent's limits are mostly instructions and permission prompts, and every
 prompt is friction: someone has to watch the panes. If the environment itself holds the limits, the
