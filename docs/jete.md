@@ -132,7 +132,7 @@ Done: time-to-ready with a network is 1.7–1.8 s, the same as without one. The 
 
 ### Egress proxy
 
-Added for the egress gateway, barre ([gateway.md](gateway.md#who-owns-what)): a second way out,
+Added for the egress gateway, barre ([barre.md](barre.md#who-owns-what)): a second way out,
 instead of the allowlist, never with it.
 
 | Concern | Decision |

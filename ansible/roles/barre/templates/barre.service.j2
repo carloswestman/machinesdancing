@@ -1,0 +1,40 @@
+# {{ ansible_managed }}
+[Unit]
+Description=barre, the egress gateway for jete's VMs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=barre
+Group=barre
+ExecStart=/usr/local/bin/barre serve --port {{ barre_port }}
+Restart=on-failure
+
+# It needs to listen on VMs' addresses, connect out, resolve names and read
+# its policies; nothing else.
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

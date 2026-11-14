@@ -1,0 +1,5 @@
+- name: Restart barre
+  ansible.builtin.systemd_service:
+    name: barre
+    state: restarted
+    daemon_reload: true

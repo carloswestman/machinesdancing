@@ -65,7 +65,9 @@ JETE_RUN_SUDO=1 cargo test -- --ignored --nocapture           # boots jailed VMs
 ```
 
 The network tests (`crates/jete/tests/net.rs`) also need IPv4 forwarding on the host (the
-`network` Ansible role) and internet access from it: a networked VM reaches `1.1.1.1`.
+`network` Ansible role) and internet access from it: a networked VM reaches `1.1.1.1`. barre's
+tests (`crates/barre/tests/vm.rs`) need the same, and `curl` in the guest image; they run barre
+inside the test, on its own port and policy directory, so an installed barre is not disturbed.
 
 ### Running `jete`
 
@@ -91,6 +93,44 @@ From the Mac, run your working copy on hemlock through the runner instead, witho
 ```bash
 alias jete='JETE_RUN_SUDO=1 cargo run -q --bin jete --'   # in the repo; add to your shell if you like
 jete ls
+```
+
+### Running barre
+
+barre, the egress gateway ([barre.md](barre.md)), runs on hemlock as the `barre` service, installed
+with `scripts/install-barre`. That also installs `barre-vm` in `/usr/local/bin`, a short script
+(source: `ansible/roles/barre/templates/barre-vm.j2`) that boots a VM behind the service with a
+policy, and removes both:
+
+```bash
+id=$(sudo barre-vm run example.com github.com:22)   # jete run --egress-proxy 15001, then barre allow
+sudo jete exec $id -- curl -sI https://example.com
+sudo barre ls                                       # policies: address, VM, rules
+journalctl -u barre -o cat -f                       # every query and connection, with its decision
+sudo barre-vm rm $id                                # barre revoke, then jete rm
+```
+
+From the Mac, run your working copy on hemlock through the runner instead, as with `jete`:
+
+```bash
+alias barre='JETE_RUN_SUDO=1 cargo run -q --bin barre --'   # in the repo; add to your shell if you like
+barre ls
+```
+
+`ls`, `allow` and `revoke` act on the service's policies, which it picks up within half a second.
+`serve` needs its own port and policy directory, since the service holds port 15001; start VMs
+for it with that port and give it their policies by hand, as `barre-vm` would:
+
+```bash
+ssh hemlock sudo mkdir -p /run/barre-dev
+barre --policies /run/barre-dev serve --port 15002   # in one terminal; Ctrl-C stops it
+
+# in another:
+id=$(jete run --egress-proxy 15002)
+addr=$(ssh hemlock ip -4 -br addr show jete-$id | awk '{print $3}'); addr=${addr%/*}
+barre --policies /run/barre-dev allow $addr --vm $id example.com
+jete exec $id -- curl -sI https://example.com
+jete rm $id
 ```
 
 ### Runner settings
@@ -131,6 +171,13 @@ Installing `jete` on hemlock (release build, through `ansible/jete.yml`):
 
 ```bash
 scripts/install-jete
+```
+
+Installing barre, the egress gateway, on hemlock as a service, with `barre-vm` (release build,
+through `ansible/barre.yml`):
+
+```bash
+scripts/install-barre
 ```
 
 Changing hemlock itself:

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# barre-vm: starts a jete VM whose traffic all goes through barre, with a
+# policy, and removes it with its policy. Run as root.
+#
+#   barre-vm run RULE...   boot a VM allowed to reach RULEs; prints its id
+#   barre-vm rm ID         remove the VM and its policy
+#
+# Rules are barre's: NAME, *.NAME or ADDRESS[/PREFIX], then optionally
+# :PORT[,PORT...]; port 443 by default. See `barre allow --help`.
+
+set -euo pipefail
+
+port={{ barre_port }}
+
+usage() {
+  echo "usage: barre-vm run RULE... | barre-vm rm ID" >&2
+  exit 2
+}
+
+# The host side of a VM's link: where barre listens for it.
+host_addr() {
+  local addr
+  addr=$(ip -4 -br addr show "jete-$1" 2>/dev/null | awk '{print $3}')
+  echo "${addr%/*}"
+}
+
+case ${1:-} in
+  run)
+    shift
+    id=$(jete run --egress-proxy "$port")
+    if ! barre allow "$(host_addr "$id")" --vm "$id" "$@"; then
+      jete rm "$id"
+      exit 1
+    fi
+    echo "$id"
+    ;;
+  rm)
+    [[ $# -eq 2 ]] || usage
+    addr=$(host_addr "$2")
+    if [[ -n $addr ]]; then
+      barre revoke "$addr"
+    fi
+    jete rm "$2"
+    ;;
+  *)
+    usage
+    ;;
+esac

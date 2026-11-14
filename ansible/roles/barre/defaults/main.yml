@@ -1,0 +1,7 @@
+# The barre binary to install, built on the Mac (scripts/install-barre builds
+# it first). A release build for the host's target.
+barre_binary: "{{ playbook_dir }}/../target/x86_64-unknown-linux-musl/release/barre"
+
+# The port VMs' traffic is redirected to: what `jete run --egress-proxy`
+# is given. barre-vm uses it.
+barre_port: 15001

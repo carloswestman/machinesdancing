@@ -130,14 +130,14 @@ On top of the name and port, barre checks the protocols it can read:
 | Concern | Decision |
 |---|---|
 | Form | One long-running service on the host, a binary from this workspace (`crates/barre`), installed and started by Ansible as a systemd unit. A CLI, the same binary, manages policies. Built on tokio, like jete. |
-| Policies | Files in `/run/barre/policies/`, root-only, written by `barre allow` and removed by `barre revoke`. `/run` is cleared at boot, like the VMs. barre reloads them when they change. |
+| Policies | Files in `/run/barre/policies/`, one per address, written by root with `barre allow` and removed with `barre revoke`; the service can only read them. `/run` is cleared at boot, like the VMs. barre picks up changes within half a second. Each policy records the interface that carried its address when it was written, by name and index, and applies only while that interface exists. A VM's interface goes when jete removes it, and a new interface given the same address has a new index, so a stale policy is inert; `allow`, `revoke` and `ls` delete stale ones. |
 | Listening | For each policy, barre listens on that VM's `.1`, on its one port (TCP and UDP), and stops when the policy is revoked. Nothing listens on a wildcard address, so barre is unreachable from the LAN. |
 | DNS | Allowed names: an `A` record with the name's synthetic address, short TTL. Allowed names, other record types (`AAAA`, `HTTPS`, `SVCB`, ...): an empty answer, so clients use IPv4 and don't get encrypted-handshake keys (see ECH below). Everything else: `NXDOMAIN`. Nothing is forwarded upstream for names that aren't allowed, so DNS can't carry data out. |
 | Destinations | barre **refuses non-public addresses** for names: an allowed name that resolves to the LAN, the tailnet, loopback, jete's pool or any other private range is refused, so DNS can't point a VM's traffic at the host's neighbours. An address rule reaches exactly what it names. |
 | Refusals | A refused connection is closed at once, and logged with the reason. |
 | Logging | One JSON line per DNS query and per connection, to the journal: time, VM id and address, name, original destination, port, decision and reason, bytes each way, duration. |
 | Limits | Per VM: concurrent connections (default 256) and an idle timeout (default 10 minutes). A handshake or request that doesn't arrive within 10 seconds is dropped. |
-| Hardening | A dedicated `barre` user with only `CAP_NET_BIND_SERVICE`, plus systemd sandboxing (read-only filesystem except its runtime directory, no new privileges, a system call filter). It holds no secrets in the first phase. |
+| Hardening | A dedicated `barre` user with no capabilities (its port is above 1024), plus systemd sandboxing: read-only filesystem, no new privileges, only IPv4 and Unix sockets, a system call filter. It holds no secrets in the first phase. |
 | Guest image | Adds `curl`, which agents need anyway, and the tests use to make real HTTPS requests. |
 
 ## Known limits
@@ -167,26 +167,32 @@ host stays pass-through. This is designed in detail when we build it.
 
 | | Goal | Done when |
 |---|---|---|
-| G1 | By name | A VM with `--egress-proxy` reaches allowed names, on allowed ports, and nothing else; every query and connection is logged; revoking a policy cuts the VM off. |
+| G1 ✓ | By name | A VM with `--egress-proxy` reaches allowed names, on allowed ports, and nothing else; every query and connection is logged; revoking a policy cuts the VM off. |
 | G2 | Credentials | A VM calls an API that needs a key without holding the key. |
 
 **G1 is done when**, on hemlock:
 
 ```bash
-id=$(sudo jete run --egress-proxy 15001)
-addr=$(sudo jete ls --json | jq -r ".[] | select(.id==\"$id\") | .network.host")
-sudo barre allow "$addr" --vm "$id" example.com
+id=$(sudo barre-vm run example.com github.com:22)
 sudo jete exec "$id" -- curl -sI https://example.com                  # 200
-sudo jete exec "$id" -- curl -sI https://github.com                   # fails: doesn't resolve
+sudo jete exec "$id" -- bash -c 'exec 3<>/dev/tcp/github.com/22; head -c 8 <&3'   # SSH-2.0-
+sudo jete exec "$id" -- curl -sI https://github.io                    # fails: doesn't resolve
 sudo jete exec "$id" -- curl -sI http://example.com                   # fails: port 80 not allowed
-sudo jete exec "$id" -- bash -c 'echo > /dev/tcp/1.1.1.1/443'        # fails: no rule for the address
-journalctl -u barre                                                    # all four, with reasons
-sudo barre revoke "$addr"
-sudo jete exec "$id" -- curl -sI https://example.com                  # fails
+sudo jete exec "$id" -- curl -sI https://1.1.1.1                      # fails: no rule for the address
+journalctl -u barre -o cat                                             # each one, with reasons
+sudo barre-vm rm "$id"
 ```
 
-The `jq` line and the manual `allow`/`revoke` are what the control plane will do later, in one
-step with `jete run` and `jete rm`.
+`barre-vm` (installed with barre in `/usr/local/bin`; source in
+`ansible/roles/barre/templates/barre-vm.j2`) runs `jete run --egress-proxy`, then `barre allow` with the VM's
+address; `barre-vm rm` revokes the policy and removes the VM. The control plane will do the same
+later.
+
+Done: `crates/barre/tests/vm.rs` checks the above with real VMs and barre running in the test, plus
+an allowed address, a mismatched TLS server name, a name that resolves to a private address, an
+address barre never gave out, one VM using another's synthetic address, and a new VM given a
+removed VM's address. Every case is logged with its reason. The service also ran once on hemlock
+under its systemd sandbox, behind the installed jete.
 
 ## Tests
 
@@ -208,6 +214,5 @@ step with `jete run` and `jete rm`.
 
 ## Open questions
 
-1. **Who calls `allow` and `revoke` before the control plane exists.** A small wrapper script, or a
-   `jete run` hook. A hook would make jete aware of the gateway, which the layering says it
-   shouldn't be, so the proposal is a script.
+None for G1. Who calls `allow` and `revoke` before the control plane exists was settled as a
+script, `barre-vm`, so jete stays unaware of the gateway.
