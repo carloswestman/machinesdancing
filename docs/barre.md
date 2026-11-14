@@ -183,7 +183,8 @@ journalctl -u barre -o cat                                             # each on
 sudo barre-vm rm "$id"
 ```
 
-`barre-vm` (installed with barre) runs `jete run --egress-proxy`, then `barre allow` with the VM's
+`barre-vm` (installed with barre in `/usr/local/bin`; source in
+`ansible/roles/barre/templates/barre-vm.j2`) runs `jete run --egress-proxy`, then `barre allow` with the VM's
 address; `barre-vm rm` revokes the policy and removes the VM. The control plane will do the same
 later.
 

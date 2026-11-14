@@ -95,6 +95,37 @@ alias jete='JETE_RUN_SUDO=1 cargo run -q --bin jete --'   # in the repo; add to 
 jete ls
 ```
 
+### Running barre
+
+barre, the egress gateway ([barre.md](barre.md)), runs on hemlock as the `barre` service, installed
+with `scripts/install-barre`. That also installs `barre-vm` in `/usr/local/bin`, a short script
+(source: `ansible/roles/barre/templates/barre-vm.j2`) that boots a VM behind the service with a
+policy, and removes both:
+
+```bash
+id=$(sudo barre-vm run example.com github.com:22)   # jete run --egress-proxy 15001, then barre allow
+sudo jete exec $id -- curl -sI https://example.com
+sudo barre ls                                       # policies: address, VM, rules
+journalctl -u barre -o cat -f                       # every query and connection, with its decision
+sudo barre-vm rm $id                                # barre revoke, then jete rm
+```
+
+To try a working copy without touching the service, run it from the Mac on another port, with its
+own policy directory, and do by hand what `barre-vm` does:
+
+```bash
+ssh hemlock sudo mkdir -p /run/barre-dev
+alias barre='JETE_RUN_SUDO=1 cargo run -q --bin barre -- --policies /run/barre-dev'
+barre serve --port 15002                            # in one terminal; Ctrl-C stops it
+
+# in another:
+id=$(ssh hemlock sudo jete run --egress-proxy 15002)
+addr=$(ssh hemlock ip -4 -br addr show jete-$id | awk '{print $3}'); addr=${addr%/*}
+barre allow $addr --vm $id example.com
+ssh hemlock sudo jete exec $id -- curl -sI https://example.com
+ssh hemlock sudo jete rm $id
+```
+
 ### Runner settings
 
 | Variable | Default | Effect |
