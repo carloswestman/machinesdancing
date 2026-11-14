@@ -133,6 +133,28 @@ jete exec $id -- curl -sI https://example.com
 jete rm $id
 ```
 
+### Running Claude Code in a VM
+
+The guest image includes Claude Code, run as the unprivileged user `agent`. `scripts/claude-vm`
+boots a VM behind barre that may reach `api.anthropic.com`, and runs a prompt there with your Claude
+subscription:
+
+```bash
+claude setup-token                       # once, on the Mac: prints a long-lived token
+mkdir -p ~/.config/machinesdancing
+pbpaste > ~/.config/machinesdancing/claude-token && chmod 600 ~/.config/machinesdancing/claude-token
+
+scripts/claude-vm "what is in your home directory?"               # boots a VM; prints its id last
+scripts/claude-vm --vm ID "and now?"                              # the same VM again
+CLAUDE_VM_ALLOW="github.com:22,443" scripts/claude-vm "..."       # more barre rules
+ssh hemlock journalctl -u barre -o cat | grep ID                  # what it reached, and what it was refused
+ssh hemlock sudo barre-vm rm ID
+```
+
+The token goes over ssh's stdin into Claude Code's environment: it is never on a command line, and
+never written to hemlock or the VM's disk. Claude Code runs without permission prompts
+(`--dangerously-skip-permissions`): the VM and barre are what contain it.
+
 ### Runner settings
 
 | Variable | Default | Effect |

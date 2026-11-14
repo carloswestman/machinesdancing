@@ -233,8 +233,9 @@ The aim is a thin end-to-end slice early (one worker, one ticket, one pull reque
 1. **Names.** jete and the gateway (barre) are named; the bus and the control plane are not.
 2. **Events on hemlock.** Webhooks need a reachable endpoint; hemlock is on a home network.
    Options: polling, a relay, or GitHub Actions calling in over Tailscale.
-3. **Model access.** Claude Code with a Claude subscription, or any agent program with an API key.
-   Check the subscription's terms for use from VMs and with third-party programs.
+3. **Model access.** For now, Claude Code with a Claude subscription, through a token from
+   `claude setup-token` that the VM holds (`scripts/claude-vm`). Later, an API key the gateway adds
+   (G2), so the VM holds none. Check the subscription's terms before VMs run work for anyone else.
 4. **Where the control plane runs.** Inside jete's daemon or as its own service (see *The tools*).
 5. **Ticket format.** The file format of a ticket in the work repo, and how its state changes are
    committed.

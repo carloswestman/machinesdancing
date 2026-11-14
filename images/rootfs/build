@@ -15,6 +15,8 @@
 #   ROOTFS_OUT     output directory (default: /var/lib/vms/images/rootfs)
 #   ROOTFS_SIZE    image size, sparse (default: 2G)
 #   ROOTFS_MIRROR  Ubuntu archive (default: http://archive.ubuntu.com/ubuntu)
+#   CLAUDE_CODE_VERSION  Claude Code release to include: stable, latest or
+#                  a version number (default: stable)
 
 set -euo pipefail
 
@@ -23,6 +25,8 @@ suite=resolute
 out=${ROOTFS_OUT:-/var/lib/vms/images/rootfs}
 size=${ROOTFS_SIZE:-2G}
 mirror=${ROOTFS_MIRROR:-http://archive.ubuntu.com/ubuntu}
+claude_version=${CLAUDE_CODE_VERSION:-stable}
+claude_releases=https://downloads.claude.ai/claude-code-releases
 
 # systemd as init, udev for /dev, CA certificates for TLS, curl for HTTP
 # (agents need it, and the gateway's tests use it). Everything else is added
@@ -49,6 +53,18 @@ trap 'rm -rf "$work"' EXIT
 # falls back to root if it can't reach the chroot.
 chmod 0755 "$work"
 
+# Claude Code, the first agent the VMs run: its native binary, checked
+# against the release manifest's checksum, as its installer does. Installed
+# as /usr/local/bin/claude; it doesn't update itself in the guest.
+if [[ ! $claude_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  claude_version=$(curl -fsS "$claude_releases/$claude_version")
+fi
+claude_sum=$(curl -fsS "$claude_releases/$claude_version/manifest.json" |
+  python3 -c 'import json, sys; print(json.load(sys.stdin)["platforms"]["linux-x64"]["checksum"])')
+curl -fsS -o "$work/claude" "$claude_releases/$claude_version/linux-x64/claude"
+echo "$claude_sum  $work/claude" | sha256sum --check --quiet
+chmod 0755 "$work/claude"
+
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 name=ubuntu-$version-$stamp
 
@@ -58,12 +74,15 @@ mmdebstrap \
   --include="$packages" \
   --customize-hook="sync-in '$here/overlay' /" \
   --customize-hook="copy-in '$here/jete-agent' /usr/local/bin" \
+  --customize-hook="copy-in '$work/claude' /usr/local/bin" \
   --customize-hook='chroot "$1" systemctl enable jete-agent.service' \
+  --customize-hook='chroot "$1" useradd --create-home --shell /bin/bash agent' \
   --customize-hook='chroot "$1" passwd --lock root' \
   --customize-hook='rm -f "$1/etc/machine-id" && touch "$1/etc/machine-id"' \
   --customize-hook="chroot \"\$1\" dpkg-query -W -f='\${Package} \${Version}\n' > '$work/$name.manifest'" \
   "$suite" "$work/rootfs" "$mirror"
 echo "jete-agent sha256:$(sha256sum "$here/jete-agent" | cut -d' ' -f1)" >> "$work/$name.manifest"
+echo "claude-code $claude_version sha256:$claude_sum" >> "$work/$name.manifest"
 
 # The guest kernel configures the network from jete's boot line (ip=...) and
 # writes the resolver it was given to /proc/net/pnp, in resolv.conf format.

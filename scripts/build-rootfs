@@ -3,7 +3,7 @@
 #
 # Builds jete-agent (release), copies it and images/rootfs to the host, and
 # runs the build script there under sudo. Prints the path of the new image on the host. See images/rootfs/build
-# for what it produces and the ROOTFS_* settings, which are forwarded.
+# for what it produces and its settings (ROOTFS_*, CLAUDE_CODE_VERSION), which are forwarded.
 #
 # Environment:
 #   JETE_HOST   SSH host to build on (default: hemlock)
@@ -15,7 +15,7 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 remote_dir=.cache/jete-build
 
 env_prefix=""
-for var in ROOTFS_OUT ROOTFS_SIZE ROOTFS_MIRROR; do
+for var in ROOTFS_OUT ROOTFS_SIZE ROOTFS_MIRROR CLAUDE_CODE_VERSION; do
   if [[ -n ${!var:-} ]]; then
     env_prefix+="$var=$(printf '%q' "${!var}") "
   fi
