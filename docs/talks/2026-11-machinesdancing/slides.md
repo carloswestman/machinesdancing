@@ -3,7 +3,7 @@ theme: neversink
 colorSchema: light
 title: 'Firecracker, Rust and Linux: Building an isolated execution environment for AI agents'
 info: |
-  machinesdancing: VMs and an egress gateway for AI agents.
+  machinesdancing: µVMs and an egress gateway for AI agents.
   Bellingham Linux Users Group, Show and See.
 layout: cover
 transition: slide-left
@@ -26,7 +26,7 @@ and everything it sends to the network goes through a gateway that decides, by n
 reach. It runs on a mini PC at home. I'll show you how it works, run it live, and be clear about
 what's done and what isn't."
 
-The names are ballet: jeté is a leap (the VM manager, fast), the barre is the rail dancers hold
+The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the rail dancers hold
 (the gateway: something to lean on, and a barrier).
 -->
 
@@ -42,7 +42,7 @@ Today, that practice is held together by **instructions agents are asked to foll
 > We trust agents' judgment, not their compliance.
 
 **Principle 1, enforced, not requested:** anything that must hold is enforced by the system
-(the VM, the gateway), not written in a prompt.
+(the µVM, the gateway), not written in a prompt.
 
 <!--
 This is what makes it a systems project rather than an AI project. An agent can misread an
@@ -53,26 +53,27 @@ Source: PRINCIPLES.md (16 principles; 1, 3 and 4 drive everything in this talk).
 
 AI disclosure, short (adapt to your words): "This is an AI-assisted project. Coding agents wrote
 most of the code, Rust included. My part is the design, the decisions, reviewing, and testing on
-real VMs. I'll be clear about what I've verified." More on that near the end.
+real µVMs. I'll be clear about what I've verified." More on that near the end.
 -->
 
 ---
 
-# Why VMs?
+# Why µVMs?
 
 - Agents **run code nobody reviewed**: packages, scripts, whatever a task needs.
+- Each agent gets a Firecracker **microVM** (µVM): a real VM with a minimal device model, cheap enough to have one per agent.
 - So the boundary is a **hypervisor**, not a shared kernel (principle 3).
-- **Deny by default** (principle 4): a VM reaches nothing unless it's given it.
+- **Deny by default** (principle 4): a µVM reaches nothing unless it's given it.
 
 | Must be able to | Must not be able to |
 |---|---|
 | Run commands, install things, use files | Reach the host's services |
-| Reach the model API, git, registries it's allowed | Reach the LAN, the tailnet, other VMs |
+| Reach the model API, git, registries it's allowed | Reach the LAN, the tailnet, other µVMs |
 | Do it fast, disposably | Talk its way past the rules |
 
 <!--
 Careful with containers: they're not "insecure", they share the host's kernel. For code we didn't
-write, I wanted the kernel boundary too, and Firecracker makes VMs cheap enough to use one per
+write, I wanted the kernel boundary too, and Firecracker makes µVMs cheap enough to use one per
 agent: it's what AWS Lambda runs on.
 
 Non-goals for now: several hosts, multi-tenant production use, the orchestration layers (they're
@@ -92,7 +93,7 @@ designed on paper, not built).
 |---|---|---|
 | 1 | **Enforced, not requested** <span style="color:#059669">●</span> | What must hold is enforced by the system, never asked of agents |
 | 2 | **Tools, not a monolith** <span style="color:#059669">●</span> | Small tools; lower ones know nothing of the layers above |
-| 3 | **Isolation** <span style="color:#059669">●</span> | Each agent in its own VM: a hypervisor, not a shared kernel |
+| 3 | **Isolation** <span style="color:#059669">●</span> | Each agent in its own µVM: a hypervisor, not a shared kernel |
 | 4 | **Deny by default** <span style="color:#059669">●</span> | Every resource, peer and message type is granted explicitly |
 | 5 | **Strict channels** | Agents talk only over declared channels |
 | 6 | **Control before delivery** | Every message and action is checked; refusals give a reason |
@@ -137,9 +138,9 @@ Source: PRINCIPLES.md (wording shortened).
 
 | Component | What it is | Description |
 |---|---|---|
-| **jete** | VM manager | Boots jailed Firecracker VMs in about 1.7 s, runs commands in them over vsock, gives each a network link or none. *Built.* |
-| **jete-agent** | Guest agent | Inside every VM: says it's ready, runs processes for the host, streams their input and output. *Built.* |
-| **barre** | Egress gateway | Every connection a VM makes goes through it: allowed by name and port, or refused, and logged. *Built (phase 1).* |
+| **jete** | µVM manager | Boots jailed Firecracker µVMs in about 1.7 s, runs commands in them over vsock, gives each a network link or none. *Built.* |
+| **jete-agent** | Guest agent | Inside every µVM: says it's ready, runs processes for the host, streams their input and output. *Built.* |
+| **barre** | Egress gateway | Every connection a µVM makes goes through it: allowed by name and port, or refused, and logged. *Built (phase 1).* |
 | **mime** | Agent message bus | Messages between agents, over declared channels only, checked and recorded. *Not designed.* |
 | **regisseur** | Control plane | Roles, tickets, workflows; spawns and destroys agents through jete. *Not designed.* |
 
@@ -158,7 +159,7 @@ boundary, and the demos are about them.
 Principle 2 in practice: jete never learns what an agent is; barre never reads jete's state. Each is
 usable on its own.
 
-The bus will have a small shim in each VM that speaks to it over vsock (see the next slide).
+The bus will have a small shim in each µVM that speaks to it over vsock (see the next slide).
 
 The names are ballet: a jeté is a leap; the barre is the rail dancers hold on to; mime is the fixed
 vocabulary of gestures dancers use to talk to each other on stage; the régisseur runs the
@@ -181,15 +182,17 @@ flowchart LR
     internet[(Allowed internet<br/>model API, registries)]
 
     subgraph host[Host: hemlock]
-        cp[Control plane<br/>workflows, roles, connectors]
-        bus[Bus<br/>channels, schemas, record]
-        gw[Egress gateway<br/>allowlist, credentials, log]
-        jete[jete<br/>VMs]
-        subgraph vm1[VM: planner]
-            a1[Agent program] --- s1[bus shim]
+        cp[regisseur<br/>control plane: workflows, roles, connectors]
+        bus[mime<br/>agent message bus: channels, schemas, record]
+        gw[barre<br/>egress gateway: allowlist, credentials, log]
+        jete[jete<br/>µVM manager]
+        subgraph vm1[µVM: planner]
+            a1[Agent program<br/>Claude Code] --- s1[mime shim]
+            j1[jete-agent]
         end
-        subgraph vm2[VM: worker]
-            a2[Agent program] --- s2[bus shim]
+        subgraph vm2[µVM: worker]
+            a2[Agent program<br/>Claude Code] --- s2[mime shim]
+            j2[jete-agent]
         end
     end
 
@@ -197,6 +200,7 @@ flowchart LR
     human -. watches .-> bus
     cp -- create, exec, destroy --> jete
     jete -- boots --> vm1 & vm2
+    jete -. exec, vsock .-> j1 & j2
     s1 & s2 -- vsock --> bus
     bus <-- events, actions --> cp
     cp <-- connectors --> ext
@@ -206,7 +210,7 @@ flowchart LR
 
     classDef built fill:#d1fae5,stroke:#059669,color:#064e3b
     classDef planned fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:5 5,color:#6b7280
-    class jete,gw,a1,a2 built
+    class jete,gw,a1,a2,j1,j2 built
     class cp,bus,s1,s2 planned
 ```
 
@@ -216,13 +220,15 @@ flowchart LR
 
 <!--
 The full design, from docs/architecture.md. Agents never talk to each other or to the outside
-directly: each VM has exactly two ways out, both on the host. Its vsock channel to the bus, and its
+directly: each µVM has exactly two ways out, both on the host. Its vsock channel to the bus, and its
 network link to the gateway.
 
-What exists today is the green part: jete boots the VMs, barre is their only way out, and an agent
+What exists today is the green part: jete boots the µVMs, barre is their only way out, and an agent
 (Claude Code) runs inside. mime and regisseur, which make it a "team", are next.
 
-Source: docs/architecture.md (The picture), unchanged apart from the colours.
+Source: docs/architecture.md (The picture), with each component's name, jete-agent added, and
+the colours. The agent program is the AI agent (Claude Code); jete-agent is jete's small helper
+that runs commands in the µVM.
 -->
 
 ---
@@ -235,7 +241,7 @@ Source: docs/architecture.md (The picture), unchanged apart from the colours.
 **hemlock**, a mini PC
 
 - HP EliteDesk 800, i5-10500T, 6 cores / 12 threads
-- 16 GB RAM, about 12 GB for VMs
+- 16 GB RAM, about 12 GB for µVMs
 - Ubuntu Server 26.04, kernel 7.0, KVM
 - Firecracker and jailer 1.17
 - nftables 1.1.6
@@ -248,7 +254,7 @@ Source: docs/architecture.md (The picture), unchanged apart from the colours.
 
 - Everything targets `x86_64-unknown-linux-musl`: static binaries
 - A **cargo runner** copies each binary to hemlock over SSH and runs it there
-- `cargo test` on the Mac boots real VMs on hemlock
+- `cargo test` on the Mac boots real µVMs on hemlock
 - hemlock has no compilers; Ansible owns its config
 
 </div>
@@ -259,26 +265,26 @@ Source: docs/architecture.md (The picture), unchanged apart from the colours.
 
 The runner is a small shell script (scripts/hemlock-run): binaries are named by content hash, so
 an unchanged binary isn't sent again. It means the tests that matter run against real Firecracker
-VMs, not mocks.
+µVMs, not mocks.
 
 Sources: docs/design/jete.md (Host), docs/guides/development.md, uname/firecracker --version on hemlock.
 -->
 
 ---
 
-# jete: a VM in 1.7 seconds
+# jete: a µVM in 1.7 seconds
 
 | Concern | Choice |
 |---|---|
 | Hypervisor | **Firecracker** on KVM: minimal device model, written in Rust |
-| Jail | Firecracker's **jailer**: chroot, cgroup, PID namespace, its own uid per VM |
-| Disks | **XFS reflinks**: each VM's disk is a copy-on-write clone of a read-only image |
+| Jail | Firecracker's **jailer**: chroot, cgroup, PID namespace, its own uid per µVM |
+| Disks | **XFS reflinks**: each µVM's disk is a copy-on-write clone of a read-only image |
 | Guest | Minimal Ubuntu 26.04 (mmdebstrap), systemd, kernel 6.18 |
 | Control | **vsock**: a socket between host and guest that needs no network |
 | Network | None by default; a tap device and nftables rules when asked |
 
 <!--
-Each VM gets a random 8-hex id and its own Unix user (from uid 300000). The jail holds a hard link
+Each µVM gets a random 8-hex id and its own Unix user (from uid 300000). The jail holds a hard link
 to the kernel, a reflinked root filesystem, and the config. The cgroup caps memory at guest RAM
 plus 128 MiB.
 
@@ -290,7 +296,7 @@ Sources: docs/design/jete.md (Stack, M1 plan), crates/jete/src/vm.rs.
 
 ---
 
-# A VM's life
+# A µVM's life
 
 ```mermaid {scale: 0.5}
 sequenceDiagram
@@ -299,7 +305,7 @@ sequenceDiagram
   participant G as guest systemd
   participant A as jete-agent
   R->>R: id, uid, reflinked disk, tap and rules
-  R->>F: jailer: chroot, cgroup, PID ns, VM's uid
+  R->>F: jailer: chroot, cgroup, PID ns, µVM's uid
   F->>G: boot kernel 6.18 (about 0.6 s)
   G->>A: start, after local filesystems
   loop up to 30 s
@@ -313,7 +319,7 @@ sequenceDiagram
 
 <!--
 "Started by the hypervisor" isn't "ready": jete waits for the guest agent's answer on vsock, and
-that moment is the time-to-ready it reports. If it never comes (30 s), the VM is torn down: a
+that moment is the time-to-ready it reports. If it never comes (30 s), the µVM is torn down: a
 test covers that.
 
 The agent: a 765 KB static Rust binary. One connection is one session; frames are length-prefixed,
@@ -329,7 +335,7 @@ images/rootfs/overlay/etc/systemd/system/jete-agent.service.
 layout: center
 ---
 
-# Demo 1: a VM, start to finish
+# Demo 1: a µVM, start to finish
 
 ```bash
 id=$(sudo jete run)                                   # prints the id; "ready in N ms"
@@ -346,7 +352,7 @@ Expected (demos/1-vm-lifecycle.txt has a recorded run):
 - Linux 6.18.56+
 - lo only
 - hi, exit 3: the exit code comes back through vsock
-- after rm, the VM is gone from ls: no jail, cgroup or state left (tests check this).
+- after rm, the µVM is gone from ls: no jail, cgroup or state left (tests check this).
 
 Point to make: this is a separate kernel, not a process on the host. uname shows the guest's
 kernel (6.18), not hemlock's (7.0).
@@ -356,23 +362,23 @@ Fallback: show demos/1-vm-lifecycle.txt.
 
 ---
 
-# The network: one owner per VM's egress
+# The network: one owner per µVM's egress
 
-A VM's network has two concerns. Each has **exactly one** owner.
+A µVM's network has two concerns. Each has **exactly one** owner.
 
 | | Owner | Guarantees |
 |---|---|---|
-| **Isolation** | jete | The VM's traffic leaves only through the exit chosen. Never the host's services, the LAN, the tailnet, other VMs. Nothing connects in. |
+| **Isolation** | jete | The µVM's traffic leaves only through the exit chosen. Never the host's services, the LAN, the tailnet, other µVMs. Nothing connects in. |
 | **Egress policy** | the exit | What it may reach beyond that, and the record of it. |
 
-jete offers two exits, and a VM gets **one**:
+jete offers two exits, and a µVM gets **one**:
 
 - **Direct**: `jete run --allow 1.1.1.1 --dns 1.1.1.1`. jete's firewall is the policy, by address.
 - **Proxy**: `jete run --egress-proxy 15001`. **All** of its traffic goes to one host port. Whatever listens there is the policy: barre.
 
 <!--
 This was a design correction mid-project: at first jete and the gateway would both have had a say
-over the same VM's traffic. Splitting it like this means there's never a question of which one
+over the same µVM's traffic. Splitting it like this means there's never a question of which one
 let something through. jete refuses to mix the two.
 
 It's the same split as a service mesh (Istio/Envoy): the firewall sends everything to the proxy;
@@ -387,22 +393,22 @@ Source: docs/design/barre.md (Who owns what).
 
 ```mermaid {scale: 0.68}
 flowchart LR
-  app["VM<br/>10.200.0.6"] --> tap["tap jete-id<br/>10.200.0.5"] --> nft{{"nftables<br/>inet jete"}}
+  app["µVM<br/>10.200.0.6"] --> tap["tap jete-id<br/>10.200.0.5"] --> nft{{"nftables<br/>inet jete"}}
   nft -- "redirect<br/>TCP, UDP 53" --> barre["barre<br/>10.200.0.5:15001"]
   barre -- "allowed<br/>names" --> inet[(internet)]
-  nft -. "drop: other UDP,<br/>ICMP, IPv6" .-x other[("host, LAN,<br/>tailnet, VMs")]
+  nft -. "drop: other UDP,<br/>ICMP, IPv6" .-x other[("host, LAN,<br/>tailnet, µVMs")]
 ```
 
 - The kernel keeps each connection's **original destination**; barre reads it with `SO_ORIGINAL_DST`.
 - A transparent proxy: the guest doesn't know it's there. If barre isn't listening, nothing gets out.
 
 <!--
-Concretely: each VM gets a /30 from 10.200.0.0/16, host side .1, guest .2. Routed, not bridged.
+Concretely: each µVM gets a /30 from 10.200.0.0/16, host side .1, guest .2. Routed, not bridged.
 jete owns one nftables table and touches nothing else (Tailscale's tables stay as they are).
 
-Per VM: a prerouting chain that redirects its TCP and its UDP port 53 to the proxy port, an input
+Per µVM: a prerouting chain that redirects its TCP and its UDP port 53 to the proxy port, an input
 chain that accepts only that port, a forward chain that drops everything. Packets from any source
-address other than the VM's own are dropped, so barre can trust the source.
+address other than the µVM's own are dropped, so barre can trust the source.
 
 Fails closed: jete doesn't know what listens on the port. Nothing listening, nothing reached.
 
@@ -416,12 +422,12 @@ Sources: crates/jete/src/net.rs (BASE_TABLE, PREROUTING, rules), crates/jete/tes
 
 ```mermaid {scale: 0.52}
 sequenceDiagram
-  participant C as curl in the VM
+  participant C as curl in the µVM
   participant B as barre
   participant R as host resolver
   participant S as example.com
   C->>B: DNS: A example.com? (redirected)
-  B-->>C: 198.18.0.1, a synthetic address for this VM only
+  B-->>C: 198.18.0.1, a synthetic address for this µVM only
   C->>B: TCP to 198.18.0.1:443 (redirected, original destination kept)
   B->>B: 198.18.0.1 means example.com. Allowed on 443?
   B->>B: TLS handshake's server name (SNI) is example.com?
@@ -436,11 +442,11 @@ Why synthetic addresses: a CDN address serves thousands of sites, so an IP allow
 broad or breaks. Answering DNS with an address that stands for one name means every connection,
 whatever the protocol (HTTPS, git over SSH), tells barre which name it was made for.
 
-198.18.0.0/15 is reserved for benchmarking, never routed on the internet. Addresses are per VM: one
-VM can't use another's (tested).
+198.18.0.0/15 is reserved for benchmarking, never routed on the internet. Addresses are per µVM: one
+µVM can't use another's (tested).
 
 Extra checks it can make: on 443 the SNI must match; on 80 the Host header. A name that resolves to
-a private address (the LAN, the tailnet, loopback) is refused, so DNS can't aim a VM at the host's
+a private address (the LAN, the tailnet, loopback) is refused, so DNS can't aim a µVM at the host's
 neighbours. No TLS is decrypted.
 
 Rules look like: example.com, *.githubusercontent.com, github.com:22,443, 140.82.112.0/20:22.
@@ -470,7 +476,7 @@ journalctl -u barre -o cat | grep $id |
 ```
 
 <!--
-barre-vm is a short bash script: jete run --egress-proxy 15001, then barre allow with the VM's
+barre-vm is a short bash script: jete run --egress-proxy 15001, then barre allow with the µVM's
 address. The sleep 1 matters: barre picks up a new policy within half a second, and a request
 sent before that finds nothing listening and fails. (Known; see the status slide.)
 
@@ -490,7 +496,7 @@ Fallback: demos/2-egress-policy.txt.
 layout: center
 ---
 
-# Demo 3: change the rules, not the VM
+# Demo 3: change the rules, not the µVM
 
 ```bash
 sudo jete exec $id -- curl -sS https://1.1.1.1              # refused
@@ -505,10 +511,10 @@ sudo barre-vm rm $id
 <!--
 The guest isn't touched and doesn't cooperate: the policy lives on the host. allow replaces the
 whole policy; barre applies it within half a second. Changed rules apply to new connections;
-revoking stops the VM's listeners and closes its open connections.
+revoking stops the µVM's listeners and closes its open connections.
 
-A policy records the interface its address was on, by name and index. When jete removes the VM the
-interface goes, so a forgotten policy can never pass to the next VM given the same address (tested).
+A policy records the interface its address was on, by name and index. When jete removes the µVM the
+interface goes, so a forgotten policy can never pass to the next µVM given the same address (tested).
 
 Fallback: demos/2-egress-policy.txt, "demo 3" part.
 -->
@@ -518,20 +524,20 @@ Fallback: demos/2-egress-policy.txt, "demo 3" part.
 # An agent inside: Claude Code
 
 - The guest image includes **Claude Code**, run as an unprivileged user `agent`.
-- `scripts/claude-vm "PROMPT"` boots a VM that may reach **`api.anthropic.com`** and nothing else, then runs the prompt.
-- No permission prompts inside: the VM and barre contain it, not the agent's own checks.
+- `scripts/claude-vm "PROMPT"` boots a µVM that may reach **`api.anthropic.com`** and nothing else, then runs the prompt.
+- No permission prompts inside: the µVM and barre contain it, not the agent's own checks.
 - The subscription token goes over SSH's stdin into its environment: never on a command line or a disk.
 
-**Status: working, by hand.** Prompts run on a real subscription. barre's log shows these VMs reaching `api.anthropic.com` and nothing else. Next: a real task, with a repo and a pull request.
+**Status: working, by hand.** Prompts run on a real subscription. barre's log shows these µVMs reaching `api.anthropic.com` and nothing else. Next: a real task, with a repo and a pull request.
 
 <!--
 Optional live demo (it works with a real token; keep the token file off screen):
   scripts/claude-vm "what is in your home directory?"
   ssh hemlock journalctl -u barre -o cat | grep ID     # api.anthropic.com, and nothing else
 
-Honest caveat: the token is inside the VM while Claude Code runs, so anything in that VM could use
-it, though only toward names the VM may reach. Phase 2 of barre adds credentials at the gateway, so
-the VM holds none.
+Honest caveat: the token is inside the µVM while Claude Code runs, so anything in that µVM could use
+it, though only toward names the µVM may reach. Phase 2 of barre adds credentials at the gateway, so
+the µVM holds none.
 
 Sources: images/rootfs/build, scripts/claude-vm, docs/guides/claude-code.md.
 -->
@@ -544,19 +550,19 @@ Sources: images/rootfs/build, scripts/claude-vm, docs/guides/claude-code.md.
 
 | Capability | Status | Evidence |
 |---|---|---|
-| VM lifecycle, jail, cleanup | Implemented, tested | jete `tests/vm.rs` (3, real VMs) |
+| µVM lifecycle, jail, cleanup | Implemented, tested | jete `tests/vm.rs` (3, real µVMs) |
 | Readiness and command execution | Implemented, tested | jete `tests/agent.rs` (13) |
-| Host, LAN, tailnet, other VMs unreachable | Implemented, tested | jete `tests/net.rs` (6) |
+| Host, LAN, tailnet, other µVMs unreachable | Implemented, tested | jete `tests/net.rs` (6) |
 | DNS and egress by name, logged | Implemented, tested | barre `tests/vm.rs` (2), 21 unit tests |
 | IPv6, ICMP, spoofed sources dropped | Implemented, **not tested** | nftables rules in `net.rs` |
-| Claude Code in a VM, behind barre | Implemented, tested by hand | `scripts/claude-vm`; barre's log |
-| Credentials kept out of VMs | **Planned** | barre phase 2 |
+| Claude Code in a µVM, behind barre | Implemented, tested by hand | `scripts/claude-vm`; barre's log |
+| Credentials kept out of µVMs | **Planned** | barre phase 2 |
 | Daemon, snapshots; mime; regisseur | **Planned** | jete M3, M4; not designed |
 
 </div>
 
 <!--
-I'd rather show this table than claim "secure". What's tested is tested on real Firecracker VMs on
+I'd rather show this table than claim "secure". What's tested is tested on real Firecracker µVMs on
 hemlock, in the same cargo test run.
 
 Known rough edges:
@@ -590,7 +596,7 @@ Source: docs/design/barre.md (Known limits, Phase 2).
 - **AI-assisted.** Coding agents (Claude Code) wrote most of the code, Rust included.
 - **Mine:** the principles, the design docs, the decisions, review, and testing.
 - **Design first.** Each tool has a design doc with milestones and "done when" commands, written before the code.
-- **Real tests.** `cargo test` on the Mac boots Firecracker VMs on hemlock. Every claim on the status slide points at one.
+- **Real tests.** `cargo test` on the Mac boots Firecracker µVMs on hemlock. Every claim on the status slide points at one.
 - **Branch, pull request, review, merge.** Hosts change only through Ansible.
 
 <!--
@@ -600,7 +606,7 @@ that it behaves. There are details I'm still learning, which is part of why I'm 
 
 If asked something you don't know: "I'd rather check the code than guess."
 
-A detail that went wrong and got caught by running it on real VMs makes a good story here, e.g. the
+A detail that went wrong and got caught by running it on real µVMs makes a good story here, e.g. the
 demo-2 race, or an address-reuse test that needed tests to run one at a time.
 -->
 
@@ -609,15 +615,15 @@ demo-2 race, or an address-reuse test that needed tests to run one at a time.
 # Next, and questions for you
 
 **Next**
-- A real task, end to end: Claude Code in a VM, a git repo, a pull request
-- Credentials added by barre, so VMs hold none
-- jete: a daemon with an API; snapshots and a warm pool for instant VMs
+- A real task, end to end: Claude Code in a µVM, a git repo, a pull request
+- Credentials added by barre, so µVMs hold none
+- jete: a daemon with an API; snapshots and a warm pool for instant µVMs
 - mime, the agent message bus, and regisseur, the control plane: the "team" part
 
 **I'd value your take on**
 - Would you trust a transparent proxy, or rather an explicit one?
 - Domain fronting: decrypt, or live with it?
-- What would you test to try to get out of one of these VMs?
+- What would you test to try to get out of one of these µVMs?
 
 <!--
 Pick two of the three questions, depending on time. End on the question; don't summarize.
@@ -642,15 +648,15 @@ layout: section
 
 ---
 
-# Backup: a proxied VM's nftables rules
+# Backup: a proxied µVM's nftables rules
 
 ```bash
-# Base table, created once (excerpt): each tap goes to its VM's chains
+# Base table, created once (excerpt): each tap goes to its µVM's chains
 chain prerouting { type nat hook prerouting priority dstnat; iifname vmap @prerouting_vms }
 chain input      { ...; iifname "jete-*" iifname vmap @input_vms;   iifname "jete-*" drop }
 chain forward    { ...; iifname "jete-*" iifname vmap @forward_vms; iifname "jete-*" drop }
 
-# Per VM, proxy mode on port 15001
+# Per µVM, proxy mode on port 15001
 add rule inet jete vm-<id>-prerouting ip saddr 10.200.0.2 meta l4proto tcp redirect to :15001
 add rule inet jete vm-<id>-prerouting ip saddr 10.200.0.2 udp dport 53 redirect to :15001
 add rule inet jete vm-<id>-input ip saddr != 10.200.0.2 drop
@@ -683,5 +689,5 @@ Source: crates/jete/src/net.rs, and its unit tests, which check these exact line
 One JSON line per DNS answer and per connection, to the journal: `journalctl -u barre -o cat`.
 
 <!--
-Real lines from demo 2's recorded run (VM 399d4349), fields reordered, some left out (the address, and the close line's upstream).
+Real lines from demo 2's recorded run (µVM 399d4349), fields reordered, some left out (the address, and the close line's upstream).
 -->
