@@ -3,7 +3,7 @@
 The big picture: which tools make up machinesdancing, what each one owns, how they connect, where
 things are stored, and the order we build them in. [PRINCIPLES.md](../PRINCIPLES.md) says what
 must hold; this says how the pieces fit together to make it hold. Each tool gets its own design
-doc when we build it, like [jete.md](jete.md).
+doc when we build it, like [jete.md](design/jete.md).
 
 Only jete exists so far. Everything else here is a starting design, to evolve as we build.
 
@@ -61,7 +61,7 @@ Each tool does one job, is usable on its own and knows nothing about the layers 
 | Tool | Job | Knows nothing about | Status |
 |---|---|---|---|
 | **jete** | Runs VMs: images, isolation, disks (including extra read-only ones), a vsock channel per VM, and a network link that reaches only the addresses it's given. | Agents, messages, roles, workflows, GitHub. | M1 done. |
-| **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | G1 (by name) built: [barre.md](barre.md). |
+| **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | G1 (by name) built: [barre.md](design/barre.md). |
 | **Bus** | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Not designed. |
 | **Control plane** | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
 
@@ -155,7 +155,7 @@ work repo, with Jira as a possible mirror.
 |---|---|---|
 | Host to VM, control | vsock, port 1024: `jete-agent` runs commands (jete's own channel). The control plane uses it for workflow actions in an agent's workspace. | Needs no network. Only the host can connect. |
 | Agent to bus | vsock, its own port. Inside the VM, a small **bus shim** presents the bus to the agent program as an **MCP server** (tools such as "send a message", "read my inbox", "update my ticket"). | The host knows which VM a vsock connection comes from, so the bus knows the sender's identity without trusting anything the agent says (principle 7). MCP is what agent programs already speak. |
-| VM to outside | A network link (jete's tap device) whose traffic jete hands, all of it, to the gateway's port. jete owns isolation, the gateway owns the policy; neither reads the other's state ([barre.md](barre.md#who-owns-what)). No proxy settings in the guest. | Enforced by the firewall, so an agent that ignores proxy settings still can't get around it (principle 1). |
+| VM to outside | A network link (jete's tap device) whose traffic jete hands, all of it, to the gateway's port. jete owns isolation, the gateway owns the policy; neither reads the other's state ([barre.md](design/barre.md#who-owns-what)). No proxy settings in the guest. | Enforced by the firewall, so an agent that ignores proxy settings still can't get around it (principle 1). |
 | System to external systems | Connectors, with credentials held by the control plane and the gateway, never by agents. Branch protection keeps merges for the human. | Principles 7, 8. |
 | Configuration | Files in the instance config repo, read by the control plane. | Declarative (principle 15). |
 

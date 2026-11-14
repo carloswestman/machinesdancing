@@ -3,7 +3,7 @@
 barre is the egress gateway: it carries every connection a VM makes to the outside world. It
 allows each connection by the **name** the VM asked for, checked against that VM's allowlist; logs
 every request; and, in a later phase, adds credentials so agents never hold them. Its place in the
-whole is in [architecture.md](architecture.md); the network it sits on is jete's M2
+whole is in [architecture.md](../architecture.md); the network it sits on is jete's M2
 ([jete.md](jete.md#m2-plan)).
 
 The name is from ballet, like jete's: the barre is the rail dancers hold on to, something to lean

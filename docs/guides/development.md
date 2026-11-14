@@ -10,7 +10,7 @@ Code is written and compiled on the Mac and runs on hemlock. Hosts are configure
 ## Mac setup
 
 Prerequisites: [Homebrew](https://brew.sh), and SSH access to hemlock with your key (`ssh hemlock`
-works without a password; see [`ansible/README.md`](../ansible/README.md)).
+works without a password; see [`ansible/README.md`](../../ansible/README.md)).
 
 1. **Install the tools:**
 
@@ -47,7 +47,7 @@ works without a password; see [`ansible/README.md`](../ansible/README.md)).
   so building for macOS is neither possible nor useful.
 - **Static binaries.** musl links everything in, so a binary runs on hemlock and inside any guest
   image as-is.
-- **Tests run on hemlock.** `.cargo/config.toml` sets [`scripts/hemlock-run`](../scripts/hemlock-run)
+- **Tests run on hemlock.** `.cargo/config.toml` sets [`scripts/hemlock-run`](../../scripts/hemlock-run)
   as the cargo *runner*. It copies each compiled test or binary to hemlock over SSH, runs it there
   with the same arguments, streams the output back and passes the exit code through. `cargo test`
   and `cargo run` on the Mac therefore execute on hemlock.
@@ -97,7 +97,7 @@ jete ls
 
 ### Running barre
 
-barre, the egress gateway ([barre.md](barre.md)), runs on hemlock as the `barre` service, installed
+barre, the egress gateway ([barre.md](../design/barre.md)), runs on hemlock as the `barre` service, installed
 with `scripts/install-barre`. That also installs `barre-vm` in `/usr/local/bin`, a short script
 (source: `ansible/roles/barre/templates/barre-vm.j2`) that boots a VM behind the service with a
 policy, and removes both:
@@ -135,25 +135,7 @@ jete rm $id
 
 ### Running Claude Code in a VM
 
-The guest image includes Claude Code, run as the unprivileged user `agent`. `scripts/claude-vm`
-boots a VM behind barre that may reach `api.anthropic.com`, and runs a prompt there with your Claude
-subscription:
-
-```bash
-claude setup-token                       # once, on the Mac: prints a long-lived token
-mkdir -p ~/.config/machinesdancing
-pbpaste > ~/.config/machinesdancing/claude-token && chmod 600 ~/.config/machinesdancing/claude-token
-
-scripts/claude-vm "what is in your home directory?"               # boots a VM; prints its id last
-scripts/claude-vm --vm ID "and now?"                              # the same VM again
-CLAUDE_VM_ALLOW="github.com:22,443" scripts/claude-vm "..."       # more barre rules
-ssh hemlock journalctl -u barre -o cat | grep ID                  # what it reached, and what it was refused
-ssh hemlock sudo barre-vm rm ID
-```
-
-The token goes over ssh's stdin into Claude Code's environment: it is never on a command line, and
-never written to hemlock or the VM's disk. Claude Code runs without permission prompts
-(`--dangerously-skip-permissions`): the VM and barre are what contain it.
+See [claude-code.md](claude-code.md).
 
 ### Runner settings
 
@@ -214,4 +196,4 @@ ansible-playbook site.yml                  # apply
 
 - Work on a branch and open a pull request. Nothing goes to `main` directly.
 - Hosts change only through `ansible/`. Never edit configuration on hemlock by hand.
-- Secrets never live in the repo. See *Environment variables* in [`ansible/README.md`](../ansible/README.md).
+- Secrets never live in the repo. See *Environment variables* in [`ansible/README.md`](../../ansible/README.md).
