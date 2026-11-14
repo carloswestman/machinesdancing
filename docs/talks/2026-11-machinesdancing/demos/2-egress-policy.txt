@@ -1,0 +1,58 @@
+$ id=$(sudo barre-vm run example.com github.com:22); sleep 1
+
+$ sudo barre ls
+ADDRESS          VM        RULES
+10.200.0.5       399d4349  example.com github.com:22
+
+$ sudo jete exec $id -- cat /etc/resolv.conf
+#MANUAL
+nameserver 10.200.0.5
+
+$ sudo jete exec $id -- getent hosts example.com
+198.18.0.1      example.com
+
+$ sudo jete exec $id -- curl -sI https://example.com | head -1
+HTTP/2 200 
+
+$ sudo jete exec $id -- bash -c 'exec 3<>/dev/tcp/github.com/22; head -1 <&3'
+SSH-2.0-11529790
+
+$ sudo jete exec $id -- curl -sS https://github.io
+curl: (6) Could not resolve host: github.io
+
+$ sudo jete exec $id -- curl -sS https://github.com
+curl: (35) Send failure: Broken pipe
+
+$ sudo jete exec $id -- curl -sS http://example.com
+curl: (56) Recv failure: Connection reset by peer
+
+$ sudo jete exec $id -- curl -sS https://1.1.1.1
+curl: (35) Send failure: Broken pipe
+
+$ sudo jete exec $id -- curl -sS http://192.168.0.1
+curl: (56) Recv failure: Connection reset by peer
+
+$ journalctl -u barre -o cat | grep $id | jq -c 'select(.decision=="refuse" or .answer=="NXDOMAIN") | {name, dest, answer, reason}'
+{"name":"github.io","dest":null,"answer":"NXDOMAIN","reason":null}
+{"name":"github.com","dest":"198.18.0.2:443","answer":null,"reason":"name not allowed on this port"}
+{"name":"example.com","dest":"198.18.0.1:80","answer":null,"reason":"name not allowed on this port"}
+{"name":null,"dest":"1.1.1.1:443","answer":null,"reason":"no rule for this address and port"}
+{"name":null,"dest":"192.168.0.1:80","answer":null,"reason":"no rule for this address and port"}
+
+=== demo 3 ===
+
+$ sudo jete exec $id -- curl -sS https://1.1.1.1
+curl: (35) Send failure: Broken pipe
+
+$ sudo barre allow $addr --vm $id example.com github.com:22 1.1.1.1; sleep 1
+
+$ sudo jete exec $id -- curl -sI https://1.1.1.1 | head -1
+HTTP/2 301 
+
+$ sudo barre revoke $addr; sleep 1
+
+$ sudo jete exec $id -- curl -sS https://example.com
+curl: (6) Could not resolve host: example.com
+
+$ sudo barre-vm rm $id
+399d4349

@@ -1,0 +1,17 @@
+/* Code is shown as typed: no ligatures turning != into ≠ or <id> into arrows. */
+code, pre, .slidev-code {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+/* A diagram as wide as the slide, whatever its natural size. */
+.fit-width svg {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* The principles slide: two compact tables without header rows. */
+.principles table { margin: 0; }
+.principles thead { display: none; }
+.principles td { padding: 0.2rem 0.4rem; line-height: 1.25; }
