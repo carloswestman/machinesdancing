@@ -69,7 +69,9 @@ pub fn write(dir: &Path, addr: Ipv4Addr, policy: &Policy) -> io::Result<()> {
         .truncate(true)
         .mode(0o644)
         .open(&tmp)?;
-    file.write_all(&serde_json::to_vec_pretty(policy)?)?;
+    let mut json = serde_json::to_vec_pretty(policy)?;
+    json.push(b'\n');
+    file.write_all(&json)?;
     file.sync_all()?;
     fs::rename(&tmp, &target)
 }
