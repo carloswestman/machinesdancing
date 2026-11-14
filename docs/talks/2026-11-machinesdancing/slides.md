@@ -159,7 +159,8 @@ boundary, and the demos are about them.
 Principle 2 in practice: jete never learns what an agent is; barre never reads jete's state. Each is
 usable on its own.
 
-The bus will have a small shim in each µVM that speaks to it over vsock (see the next slide).
+mime will have a small MCP server in each µVM: the agent program sees mime as MCP tools ("send a
+message", "read my inbox"), and the server carries them to mime over vsock (see the next slide).
 
 The names are ballet: a jeté is a leap; the barre is the rail dancers hold on to; mime is the fixed
 vocabulary of gestures dancers use to talk to each other on stage; the régisseur runs the
@@ -187,11 +188,11 @@ flowchart LR
         gw[barre<br/>egress gateway: allowlist, credentials, log]
         jete[jete<br/>µVM manager]
         subgraph vm1[µVM: planner]
-            a1[Agent program<br/>Claude Code] --- s1[mime shim]
+            a1[Agent program<br/>Claude Code] --- s1[mime MCP server]
             j1[jete-agent]
         end
         subgraph vm2[µVM: worker]
-            a2[Agent program<br/>Claude Code] --- s2[mime shim]
+            a2[Agent program<br/>Claude Code] --- s2[mime MCP server]
             j2[jete-agent]
         end
     end
