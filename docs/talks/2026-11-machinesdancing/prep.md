@@ -120,7 +120,7 @@ Notes:
     rest. Known gap: domain fronting. Phase 2 decrypts only where it adds credentials.
 11. **What runs as root?** `jete` (the jailer needs it) and `barre allow`. Each Firecracker runs as
     its own user; barre's service as `barre`, without capabilities.
-12. **How did you use AI, and how do you check it?** See slides 2 and 21. Tests boot real VMs; every
+12. **How did you use AI, and how do you check it?** See slide 2. Tests boot real VMs; every
     status claim points at one.
 
 ## Before presenting

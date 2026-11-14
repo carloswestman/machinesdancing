@@ -667,20 +667,6 @@ Source: docs/design/barre.md (Known limits, Phase 2).
 
 ---
 
-# How it's built
-
-- **AI-generated code, my architecture**, as I said at the start: Claude Code writes; I design, review and test.
-- **Design first.** Each tool has a design doc with milestones and "done when" commands, written before the code.
-- **Real tests.** `cargo test` on the Mac boots Firecracker µVMs on hemlock. Every claim on the status slide points at one.
-- **Branch, pull request, review, merge.** Hosts change only through Ansible.
-
-<!--
-A detail that went wrong and got caught by running it on real µVMs makes a good story here, e.g. the
-demo-2 race, or an address-reuse test that needed tests to run one at a time.
--->
-
----
-
 # Next, and questions for you
 
 **Next**
