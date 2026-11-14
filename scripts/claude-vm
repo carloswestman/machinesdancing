@@ -46,8 +46,10 @@ if [[ ! -r $token ]]; then
 fi
 
 if [[ -z $id ]]; then
-  # shellcheck disable=SC2086 # the rules are meant to split
-  id=$(ssh "$host" sudo barre-vm run api.anthropic.com $(printf '%q ' ${CLAUDE_VM_ALLOW:-}))
+  # Split on spaces only: a rule like *.example.com must not glob here.
+  read -ra extra <<<"${CLAUDE_VM_ALLOW:-}"
+  rules=(api.anthropic.com ${extra[@]+"${extra[@]}"})
+  id=$(ssh "$host" "sudo barre-vm run $(printf '%q ' "${rules[@]}")")
 fi
 
 # Runs in the VM, as `agent`: the token is the first line of stdin.
