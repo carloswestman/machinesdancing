@@ -1,0 +1,24 @@
+$ id=$(sudo jete run)
+ready in 1719 ms
+
+$ sudo jete ls
+ID         STATE    VCPUS  MEM MiB  READY ms  ADDRESS
+a6a22748   running      2      512      1759  10.200.0.2
+8965d99e   running      2      512      1719  -
+
+$ sudo jete exec $id -- uname -sr
+Linux 6.18.56+
+
+$ sudo jete exec $id -- ls /sys/class/net
+lo
+
+$ sudo jete exec $id -- bash -c "echo hi; exit 3"; echo "exit $?"
+hi
+exit 3
+
+$ sudo jete rm $id
+8965d99e
+
+$ sudo jete ls
+ID         STATE    VCPUS  MEM MiB  READY ms  ADDRESS
+a6a22748   running      2      512      1759  10.200.0.2
