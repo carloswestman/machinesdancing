@@ -246,10 +246,13 @@ that runs commands in the µVM.
 
 # The lab
 
-<div class="grid grid-cols-2 gap-8">
+<div class="grid grid-cols-[auto_1fr] gap-10 items-center">
+
+<img src="/thelab.jpg" class="h-[400px] rounded shadow" alt="hemlock, a mini PC with a switch on top and a nest of cables, in a cabinet">
+
 <div>
 
-**hemlock**, a mini PC
+**hemlock**, the black box at the bottom
 
 - HP EliteDesk 800, i5-10500T, 6 cores / 12 threads
 - 16 GB RAM, about 12 GB for µVMs
@@ -258,8 +261,22 @@ that runs commands in the µVM.
 - nftables 1.1.6
 - On a home LAN, joined to a tailnet
 
+<div class="pt-6 text-sm opacity-70">Cable management: not designed.</div>
+
 </div>
-<div>
+</div>
+
+<!--
+A laugh first: point at the black box, "that's where every µVM in this talk runs."
+
+hemlock is configured only by Ansible, from the Mac: nothing on it is set up by hand.
+
+Sources: docs/design/jete.md (Host), uname, firecracker --version and nft --version on hemlock.
+-->
+
+---
+
+# The development setup
 
 **The Mac** builds, hemlock runs
 
@@ -268,50 +285,12 @@ that runs commands in the µVM.
 - `cargo test` on the Mac boots real µVMs on hemlock
 - hemlock has no compilers; Ansible owns its config
 
-</div>
-</div>
-
 <!--
-[OPTIONAL PHOTO OF THE MINI PC]
-
 The runner is a small shell script (scripts/hemlock-run): binaries are named by content hash, so
 an unchanged binary isn't sent again. It means the tests that matter run against real Firecracker
 µVMs, not mocks.
 
-Sources: docs/design/jete.md (Host), docs/guides/development.md, uname/firecracker --version on hemlock.
--->
-
----
-
-# The lab, in person
-
-<div class="grid grid-cols-[auto_1fr] gap-10 items-center">
-
-<img src="/thelab.jpg" class="h-[400px] rounded shadow" alt="The lab: a mini PC with a switch on top and a nest of cables, in a cabinet">
-
-<div>
-
-- **hemlock**: the black box at the bottom
-- A network switch, resting on it
-- A Wi-Fi extender on the wall
-- All of it in a cabinet
-
-<div class="pt-8 text-sm">
-
-| Capability | Status |
-|---|---|
-| µVM isolation | Implemented, tested |
-| Egress by name | Implemented, tested |
-| Cable management | **Not designed** |
-
-</div>
-</div>
-</div>
-
-<!--
-A breather, and a laugh. Point at the black box: "that's where every µVM in this talk runs."
-
-Then on to jete.
+Sources: docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 -->
 
 ---
