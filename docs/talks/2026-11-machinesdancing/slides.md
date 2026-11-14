@@ -178,9 +178,12 @@ Sources: docs/architecture.md (The tools), crates/.
 ```mermaid
 flowchart LR
     human([Human])
-    ext[(External systems<br/>GitHub, Jira, ...)]
-    repos[(Git repos<br/>config, work, knowledge, products)]
-    internet[(Allowed internet<br/>model API, registries)]
+    subgraph outside[Outside hemlock]
+        direction TB
+        internet[(Allowed internet<br/>model API, registries)]
+        repos[(Git repos<br/>config, work, knowledge, products)]
+        ext[(External systems<br/>GitHub, Jira, ...)]
+    end
 
     subgraph host[Host: hemlock]
         cp[regisseur<br/>control plane: workflows, roles, connectors]
