@@ -14,6 +14,7 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(
     name = "barre",
+    bin_name = "barre",
     version,
     about = "Egress gateway for jete's VMs: allows each connection by name"
 )]
