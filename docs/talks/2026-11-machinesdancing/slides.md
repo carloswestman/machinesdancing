@@ -154,31 +154,11 @@ Don't read them all. Point at the green ones, the ones today's tools hold, and r
 the demos prove them. The rest are about agents working as a team (channels, approvals, the
 record), and belong to mime and regisseur, the bus and the control plane, which aren't built yet.
 
+If asked "why not containers?" (principle 3): containers aren't "insecure", they share the host's
+kernel. For code nobody reviewed, I wanted the kernel boundary too, and Firecracker makes a VM cheap
+enough to have one per agent.
+
 Source: PRINCIPLES.md (wording shortened).
--->
-
----
-
-# Why µVMs?
-
-- Agents **run code nobody reviewed**: packages, scripts, whatever a task needs.
-- Each agent gets a Firecracker **microVM** (µVM): a real VM with a minimal device model, cheap enough to have one per agent.
-- So the boundary is a **hypervisor**, not a shared kernel (principle 3).
-- **Deny by default** (principle 4): a µVM reaches nothing unless it's given it.
-
-| Must be able to | Must not be able to |
-|---|---|
-| Run commands, install things, use files | Reach the host's services |
-| Reach the model API, git, registries it's allowed | Reach the LAN, the tailnet, other µVMs |
-| Do it fast, disposably | Talk its way past the rules |
-
-<!--
-Careful with containers: they're not "insecure", they share the host's kernel. For code we didn't
-write, I wanted the kernel boundary too, and Firecracker makes µVMs cheap enough to use one per
-agent: it's what AWS Lambda runs on.
-
-Non-goals for now: several hosts, multi-tenant production use, the orchestration layers (they're
-designed on paper, not built).
 -->
 
 ---
