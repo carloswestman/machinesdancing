@@ -180,9 +180,10 @@ flowchart LR
     human([Human])
     subgraph outside[Outside hemlock]
         direction TB
-        internet[(Allowed internet<br/>model API, registries)]
-        repos[(Git repos<br/>config, work, knowledge, products)]
-        ext[(External systems<br/>GitHub, Jira, ...)]
+        internet[(Internet<br/>model API, registries)]
+        product[(Product repos<br/>the code agents work on)]
+        sysrepos[(System repos<br/>instance config, work, knowledge)]
+        ext[(GitHub, Jira<br/>code host, tracker)]
     end
 
     subgraph host[Host: hemlock]
@@ -208,9 +209,10 @@ flowchart LR
     s1 & s2 -- vsock --> bus
     bus <-- events, actions --> cp
     cp <-- connectors --> ext
-    cp <--> repos
+    cp <--> sysrepos
     a1 & a2 -- network --> gw
-    gw --> internet & repos
+    gw -- allowed names --> internet
+    gw -- git, by pull request --> product
 
     classDef built fill:#d1fae5,stroke:#059669,color:#064e3b
     classDef planned fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:5 5,color:#6b7280
@@ -230,8 +232,13 @@ network link to the gateway.
 What exists today is the green part: jete boots the µVMs, barre is their only way out, and an agent
 (Claude Code) runs inside. mime and regisseur, which make it a "team", are next.
 
-Source: docs/architecture.md (The picture), with each component's name, jete-agent added, and
-the colours. The agent program is the AI agent (Claude Code); jete-agent is jete's small helper
+Outside hemlock, by who reaches what: agents reach the internet and the product repos only through
+barre; regisseur reaches the system's own repos (instance config, work, knowledge) and the code
+host and tracker, through its connectors. The repos live on the code host, but each has its own
+writers, so each gets its own permissions (docs/architecture.md, Where things are stored).
+
+Source: docs/architecture.md (The picture), with each component's name, jete-agent added, the
+outside stores split by who reaches them, and the colours. The agent program is the AI agent (Claude Code); jete-agent is jete's small helper
 that runs commands in the µVM.
 -->
 
