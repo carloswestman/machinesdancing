@@ -75,8 +75,6 @@ agent can run with fewer prompts and do more, safely.
 
 # The solution
 
-Agents that are **controlled by the system**, not by their instructions:
-
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
 
@@ -97,6 +95,12 @@ Agents that are **controlled by the system**, not by their instructions:
 </div>
 </div>
 
+<div class="mt-6 p-4 rounded border-l-4 border-emerald-600 bg-emerald-50 text-lg">
+
+**Agent messages and actions are authorized by a deterministic policy that sits outside the agent, with identity the agent can't forge.**
+
+</div>
+
 <!--
 The core idea: anything that must hold is enforced by the system (the µVM, the gateway, the bus), not
 written in a prompt. An agent can misread an instruction, or be talked out of it by something it read
@@ -105,6 +109,15 @@ on the web.
 And an LLM shouldn't be trusted with what's deterministic: if a step is the same every time (run CI,
 hand a ticket over, update a branch after a merge), the system does it. The LLM gets the parts that
 need judgment.
+
+The highlighted line is the original part. The pieces exist elsewhere (hooks that approve tool calls,
+guardrail rules, workflow engines), but mostly inside the agent's own trust domain. Here the gate is
+outside the agent, so a compromised agent can't edit or skip it; identity comes from the hypervisor
+(which µVM a vsock connection comes from), so no agent can claim to be another; and authority doesn't
+travel, so a denied action can't be laundered through another agent.
+
+Honest limit: a deterministic gate checks form, not meaning. It limits the blast radius; it doesn't
+make an agent's ideas good.
 
 Next: these ideas, written down as principles.
 -->
