@@ -16,8 +16,8 @@ npm run export     # slides.pdf, a fallback copy (needs playwright-chromium, ins
 
 ## Still to fill in
 
-- The AI disclosure in your own words (notes on slides 2 and 20).
-- Whether to show Claude Code live (slide 17). It works; keep the token file off screen.
+- The AI disclosure in your own words (slide 2).
+- Whether to show Claude Code live (slide 19). It works; keep the token file off screen.
 
 ## Fact sheet
 
@@ -120,15 +120,15 @@ Notes:
     rest. Known gap: domain fronting. Phase 2 decrypts only where it adds credentials.
 11. **What runs as root?** `jete` (the jailer needs it) and `barre allow`. Each Firecracker runs as
     its own user; barre's service as `barre`, without capabilities.
-12. **How did you use AI, and how do you check it?** See slide 20. Tests boot real VMs; every
+12. **How did you use AI, and how do you check it?** See slides 2 and 22. Tests boot real VMs; every
     status claim points at one.
 
 ## Before presenting
 
-1. **Decide on the Claude Code demo** (slide 17). If you show it, rehearse it like the others.
+1. **Decide on the Claude Code demo** (slide 19). If you show it, rehearse it like the others.
 2. **Rehearse demos 1 to 3 twice** from a clean state, on the network you'll have there.
 3. **Decide on the half-second gap**: keep the `sleep 1`, or make `barre allow` wait until barre
    is listening.
-4. **Check slide 18's numbers** if more code lands: test counts, status labels.
+4. **Check slide 20's numbers** if more code lands: test counts, status labels.
 5. **Export the PDF** and keep it with the transcripts, offline.
 6. **Make the repository public**: the last slide links to it.

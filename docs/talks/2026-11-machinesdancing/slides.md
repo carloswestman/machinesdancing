@@ -32,52 +32,74 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 
 ---
 
-# The idea
+# Why: to learn
 
-A **team of AI agents** working as a governed system:
-a human sets direction, a planner turns it into tickets, workers deliver pull requests.
-
-Today, that practice is held together by **instructions agents are asked to follow**.
-
-> We trust agents' judgment, not their compliance.
-
-**Principle 1, enforced, not requested:** anything that must hold is enforced by the system
-(the µVM, the gateway), not written in a prompt.
+- First of all, to **learn**: Firecracker, KVM, nftables and Rust, by building something real.
+- **Disclosure:** the code is AI-generated, by Claude Code. I've studied it, reviewed it, and tested it on real Firecracker microVMs (µVMs).
+- **The architecture is mine:** the principles, the design, and every decision about what gets built and how.
 
 <!--
-This is what makes it a systems project rather than an AI project. An agent can misread an
-instruction, or be talked out of it by something it read on the web. So the rules that matter
-can't live in the prompt: they live in the hypervisor and in the network.
+Say it plainly, no apology, then move on. It sets the frame for questions: you can explain why
+everything is the way it is; for a line-by-line detail, "I'd rather check the code than guess."
 
-Source: PRINCIPLES.md (16 principles; 1, 3 and 4 drive everything in this talk).
-
-AI disclosure, short (adapt to your words): "This is an AI-assisted project. Coding agents wrote
-most of the code, Rust included. My part is the design, the decisions, reviewing, and testing on
-real µVMs. I'll be clear about what I've verified." More on that near the end.
+If asked "did AI write all of this?": "The code, yes. The architecture and the decisions are mine, and
+I've reviewed and tested what's there. There are details I'm still learning, which is part of why I'm
+showing it here."
 -->
 
 ---
 
-# Why µVMs?
+# Why: the work
 
-- Agents **run code nobody reviewed**: packages, scripts, whatever a task needs.
-- Each agent gets a Firecracker **microVM** (µVM): a real VM with a minimal device model, cheap enough to have one per agent.
-- So the boundary is a **hypervisor**, not a shared kernel (principle 3).
-- **Deny by default** (principle 4): a µVM reaches nothing unless it's given it.
-
-| Must be able to | Must not be able to |
-|---|---|
-| Run commands, install things, use files | Reach the host's services |
-| Reach the model API, git, registries it's allowed | Reach the LAN, the tailnet, other µVMs |
-| Do it fast, disposably | Talk its way past the rules |
+- More than a year of coding with AI agents, side by side in **tmux panes**.
+- It works. But to let them do more, with less friction and more output, they need **security and strict control**, held from outside the agent.
+- And a talk at **SeaGL** by the AWS Lambda team on **Firecracker**: I wanted to play with it.
 
 <!--
-Careful with containers: they're not "insecure", they share the host's kernel. For code we didn't
-write, I wanted the kernel boundary too, and Firecracker makes µVMs cheap enough to use one per
-agent: it's what AWS Lambda runs on.
+The practical reason. Today an agent's limits are mostly instructions and permission prompts, and every
+prompt is friction: someone has to watch the panes. If the environment itself holds the limits, the
+agent can run with fewer prompts and do more, safely.
 
-Non-goals for now: several hosts, multi-tenant production use, the orchestration layers (they're
-designed on paper, not built).
+Firecracker is what AWS Lambda runs on: thousands of short-lived µVMs, each booted in a fraction of a
+second. That's the shape agents need too.
+-->
+
+---
+
+# The solution
+
+Agents that are **controlled by the system**, not by their instructions:
+
+<div class="grid grid-cols-2 gap-8 pt-2">
+<div>
+
+- **Fast and ephemeral**: a µVM per agent, booted in under 2 s, destroyed after
+- **Controlled access**: only the network, files and secrets their role grants
+- **Controlled tools**: only the tools their role grants
+- **Controlled communication**: only declared channels, every message checked and recorded
+
+</div>
+<div>
+
+**The LLM decides**: judgment. Planning tickets, writing code, reviewing.
+
+**The system does**: deterministic procedures. CI/CD, ticket handover, branch updates, the bookkeeping.
+
+> We trust agents' judgment, not their compliance.
+
+</div>
+</div>
+
+<!--
+The core idea: anything that must hold is enforced by the system (the µVM, the gateway, the bus), not
+written in a prompt. An agent can misread an instruction, or be talked out of it by something it read
+on the web.
+
+And an LLM shouldn't be trusted with what's deterministic: if a step is the same every time (run CI,
+hand a ticket over, update a branch after a merge), the system does it. The LLM gets the parts that
+need judgment.
+
+Next: these ideas, written down as principles.
 -->
 
 ---
@@ -126,6 +148,30 @@ the demos prove them. The rest are about agents working as a team (channels, app
 record), and belong to mime and regisseur, the bus and the control plane, which aren't built yet.
 
 Source: PRINCIPLES.md (wording shortened).
+-->
+
+---
+
+# Why µVMs?
+
+- Agents **run code nobody reviewed**: packages, scripts, whatever a task needs.
+- Each agent gets a Firecracker **microVM** (µVM): a real VM with a minimal device model, cheap enough to have one per agent.
+- So the boundary is a **hypervisor**, not a shared kernel (principle 3).
+- **Deny by default** (principle 4): a µVM reaches nothing unless it's given it.
+
+| Must be able to | Must not be able to |
+|---|---|
+| Run commands, install things, use files | Reach the host's services |
+| Reach the model API, git, registries it's allowed | Reach the LAN, the tailnet, other µVMs |
+| Do it fast, disposably | Talk its way past the rules |
+
+<!--
+Careful with containers: they're not "insecure", they share the host's kernel. For code we didn't
+write, I wanted the kernel boundary too, and Firecracker makes µVMs cheap enough to use one per
+agent: it's what AWS Lambda runs on.
+
+Non-goals for now: several hosts, multi-tenant production use, the orchestration layers (they're
+designed on paper, not built).
 -->
 
 ---
@@ -616,19 +662,12 @@ Source: docs/design/barre.md (Known limits, Phase 2).
 
 # How it's built
 
-- **AI-assisted.** Coding agents (Claude Code) wrote most of the code, Rust included.
-- **Mine:** the principles, the design docs, the decisions, review, and testing.
+- **AI-generated code, my architecture**, as I said at the start: Claude Code writes; I design, review and test.
 - **Design first.** Each tool has a design doc with milestones and "done when" commands, written before the code.
 - **Real tests.** `cargo test` on the Mac boots Firecracker µVMs on hemlock. Every claim on the status slide points at one.
 - **Branch, pull request, review, merge.** Hosts change only through Ansible.
 
 <!--
-Adapt to your voice. If asked "did AI write all of this?": "A lot of it, yes. I'm responsible for
-the architecture and the decisions, for understanding and reviewing what's there, and for testing
-that it behaves. There are details I'm still learning, which is part of why I'm showing it here."
-
-If asked something you don't know: "I'd rather check the code than guess."
-
 A detail that went wrong and got caught by running it on real µVMs makes a good story here, e.g. the
 demo-2 race, or an address-reuse test that needed tests to run one at a time.
 -->
