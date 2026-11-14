@@ -22,20 +22,26 @@ syncing clones) are done by the system, not by agents told to remember them.
 ```mermaid
 flowchart LR
     human([Human])
-    ext[(External systems<br/>GitHub, Jira, ...)]
-    repos[(Git repos<br/>config, work, knowledge, products)]
-    internet[(Allowed internet<br/>model API, registries)]
+    subgraph outside[Outside hemlock]
+        direction TB
+        internet[(Internet<br/>model API, registries)]
+        product[(Product repos<br/>the code agents work on)]
+        sysrepos[(System repos<br/>instance config, work, knowledge)]
+        ext[(GitHub, Jira<br/>code host, tracker)]
+    end
 
     subgraph host[Host: hemlock]
-        cp[Control plane<br/>workflows, roles, connectors]
-        bus[Bus<br/>channels, schemas, record]
-        gw[Egress gateway<br/>allowlist, credentials, log]
-        jete[jete<br/>VMs]
-        subgraph vm1[VM: planner]
-            a1[Agent program] --- s1[bus shim]
+        cp[regisseur<br/>control plane: workflows, roles, connectors]
+        bus[mime<br/>agent message bus: channels, schemas, record]
+        gw[barre<br/>egress gateway: allowlist, credentials, log]
+        jete[jete<br/>µVM manager]
+        subgraph vm1[µVM: planner]
+            a1[Agent program<br/>Claude Code] --- s1[mime MCP server]
+            j1[jete-agent]
         end
-        subgraph vm2[VM: worker]
-            a2[Agent program] --- s2[bus shim]
+        subgraph vm2[µVM: worker]
+            a2[Agent program<br/>Claude Code] --- s2[mime MCP server]
+            j2[jete-agent]
         end
     end
 
@@ -43,16 +49,26 @@ flowchart LR
     human -. watches .-> bus
     cp -- create, exec, destroy --> jete
     jete -- boots --> vm1 & vm2
+    jete -. exec, vsock .-> j1 & j2
     s1 & s2 -- vsock --> bus
     bus <-- events, actions --> cp
     cp <-- connectors --> ext
-    cp <--> repos
+    cp <--> sysrepos
     a1 & a2 -- network --> gw
-    gw --> internet & repos
+    gw -- allowed names --> internet
+    gw -- git, by pull request --> product
+
+    classDef built fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef planned fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:5 5,color:#6b7280
+    class jete,gw,a1,a2,j1,j2 built
+    class cp,bus,s1,s2 planned
 ```
 
+Green: built. Grey, dashed: designed, not built yet.
+
 Agents never talk to each other or to the outside directly. Each VM has exactly two ways out,
-both on the host: its vsock channel to the bus, and its network link to the gateway.
+both on the host: its vsock channel to the bus, and its network link to the gateway. jete's own
+vsock channel to `jete-agent` is a way in, and only the host can use it.
 
 ## The tools
 
