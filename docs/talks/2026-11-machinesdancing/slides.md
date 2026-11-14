@@ -283,6 +283,39 @@ Sources: docs/design/jete.md (Host), docs/guides/development.md, uname/firecrack
 
 ---
 
+# The lab, in person
+
+<div class="grid grid-cols-[auto_1fr] gap-10 items-center">
+
+<img src="/thelab.jpg" class="h-[400px] rounded shadow" alt="The lab: a mini PC with a switch on top and a nest of cables, in a cabinet">
+
+<div>
+
+- **hemlock**: the black box at the bottom
+- A network switch, resting on it
+- A Wi-Fi extender on the wall
+- All of it in a cabinet
+
+<div class="pt-8 text-sm">
+
+| Capability | Status |
+|---|---|
+| µVM isolation | Implemented, tested |
+| Egress by name | Implemented, tested |
+| Cable management | **Not designed** |
+
+</div>
+</div>
+</div>
+
+<!--
+A breather, and a laugh. Point at the black box: "that's where every µVM in this talk runs."
+
+Then on to jete.
+-->
+
+---
+
 # jete: a µVM in 1.7 seconds
 
 | Concern | Choice |
