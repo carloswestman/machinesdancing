@@ -40,7 +40,7 @@ fi
 [[ $# -eq 1 ]] || usage
 prompt=$1
 
-if [[ ! -r $token ]]; then
+if [[ ! -r $token || ! -s $token ]]; then
   echo "claude-vm: no token in $token; run \`claude setup-token\` and save it there" >&2
   exit 1
 fi
@@ -52,13 +52,17 @@ if [[ -z $id ]]; then
   id=$(ssh "$host" "sudo barre-vm run $(printf '%q ' "${rules[@]}")")
 fi
 
-# Runs in the VM, as `agent`: the token is the first line of stdin.
+# Runs in the VM, as `agent`: the token is the first line of stdin, with or
+# without a newline after it.
 inner='cd &&
-  IFS= read -r CLAUDE_CODE_OAUTH_TOKEN &&
+  { IFS= read -r CLAUDE_CODE_OAUTH_TOKEN || [[ -n $CLAUDE_CODE_OAUTH_TOKEN ]]; } &&
   export CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_AUTOUPDATER=1 &&
   exec claude -p --dangerously-skip-permissions "$1" </dev/null'
 status=0
 ssh "$host" "sudo jete exec $(printf %q "$id") -- runuser -u agent -- bash -c $(printf %q "$inner") claude-vm $(printf %q "$prompt")" <"$token" || status=$?
 
+if [[ $status -ne 0 ]]; then
+  echo "claude-vm: failed with exit code $status" >&2
+fi
 echo "vm: $id" >&2
 exit $status
