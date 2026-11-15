@@ -50,6 +50,7 @@ code, pre, .slidev-code {
 .cast-icon { width: 3rem; height: 3rem; border-radius: 999px; background: #ecfdf5; color: #047857; display: flex; align-items: center; justify-content: center; }
 .cast-icon svg { width: 1.9rem; height: 1.9rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .cast-name { font-weight: 700; font-size: 1.15rem; line-height: 1.2; }
+.cast-name-planned { color: #9ca3af; }
 .cast-meaning { font-size: 0.8rem; font-style: italic; opacity: 0.7; }
 .cast-status { font-size: 0.75rem; border-radius: 999px; padding: 0.1rem 0.6rem; white-space: nowrap; }
 .cast-built { background: #d1fae5; color: #064e3b; }
