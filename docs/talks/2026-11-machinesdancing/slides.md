@@ -74,8 +74,8 @@ straight into the motivation.
 
 <div class="bx bx-host">
 <div class="bx-label">Your laptop: one user, one kernel</div>
-<div class="bx bx-risk mx-auto text-center" style="width:70%">Claude Code</div>
-<div class="bx-prompt mt-2">CLAUDE.md: never push to main · update the ticket · don't touch prod · ask first</div>
+<div class="bx bx-risk mx-auto text-center" style="width:70%">Claude Code / OpenCode</div>
+<div class="bx-prompt mt-2">CLAUDE.md / AGENTS.md: never push to main · update the ticket · don't touch prod · ask first</div>
 <div class="pt-2 text-center">
 <span class="chip bx-risk">~/.ssh</span>
 <span class="chip bx-risk">git credentials</span>
