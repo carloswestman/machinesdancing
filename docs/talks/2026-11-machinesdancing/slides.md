@@ -6,6 +6,7 @@ info: |
   machinesdancing: µVMs and an egress gateway for AI agents.
   Bellingham Linux Users Group, Show and See.
 layout: cover
+class: cover-photo
 transition: slide-left
 mdc: true
 ---

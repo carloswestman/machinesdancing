@@ -55,3 +55,14 @@ code, pre, .slidev-code {
 .cast-built { background: #d1fae5; color: #064e3b; }
 .cast-planned { background: #f3f4f6; color: #6b7280; border: 1px dashed #9ca3af; }
 .cast > div:nth-child(4n+3) { font-size: 1rem; }
+
+/* Title slide: the ballet photo (Pexels, pexels-olivia-3216244-27509169), darkened behind the text */
+.slidev-layout.cover.cover-photo {
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, 0.92) 0%, rgba(8, 10, 14, 0.78) 45%, rgba(8, 10, 14, 0.35) 100%),
+    url('/cover-ballet.jpg') center / cover no-repeat;
+  color: #f4f4f2;
+}
+.slidev-layout.cover.cover-photo h1,
+.slidev-layout.cover.cover-photo strong { color: #ffffff; }
+.slidev-layout.cover.cover-photo .note { color: rgba(244, 244, 242, 0.75); }
