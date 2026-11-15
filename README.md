@@ -10,6 +10,8 @@ tools.
 | [docs/build-order.md](docs/build-order.md) | What we build next, in what order, and where each step stands. |
 | [docs/design/jete.md](docs/design/jete.md) | Design of jete, the first tool: a fast Firecracker VM manager. |
 | [docs/design/barre.md](docs/design/barre.md) | Design of barre, the egress gateway: what VMs may reach, by name. |
+| [docs/design/instances.md](docs/design/instances.md) | Design of instances: one team's setup, kept outside this repo. |
+| [docs/design/repo-access.md](docs/design/repo-access.md) | Design of repo access: agents use git as developers, as a GitHub App per role. |
 | [docs/guides/development.md](docs/guides/development.md) | Setting up the Mac, and how building and testing work. |
 | [docs/guides/claude-code.md](docs/guides/claude-code.md) | Running Claude Code in a VM behind barre, on your Claude subscription. |
 | [ansible/](ansible/) | Configuration of the hosts that run everything (currently hemlock). |
