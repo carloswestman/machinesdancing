@@ -32,32 +32,32 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 
 ---
 
-# Why: the official reason
+# Agenda
 
-- More than a year of coding with AI agents, side by side in **tmux panes**.
-- It works. But to let them do more, with less friction and more output, they need **security and strict control**, held from outside the agent.
-- Giving agents access to production, or to your laptop's keys, is a **terrible idea**.
+<div class="text-lg pt-4">
 
-<div class="pt-6">
-
-An **open-source** project for running AI agents **on-prem**, fast and secure, seems like a good niche.
+1. **Motivation**: how agents run today, and how they should
+2. **The design**: the solution, the principles, the stack
+3. **The lab**: one mini PC
+4. **jete**: a µVM in 1.7 seconds, demo
+5. **barre**: the network, by name, demos
+6. **An agent inside**: Claude Code in a µVM
+7. **Where it stands**: what works, the limits, what's next
+8. **Questions for you**
 
 </div>
 
 <!--
-The practical reason. Today an agent's limits are mostly instructions and permission prompts, and every
-prompt is friction: someone has to watch the panes. If the environment itself holds the limits, the
-agent can run with fewer prompts and do more, safely.
+Thirty seconds: say where we're going, and that there are demos in the middle. Then straight into
+the motivation.
 -->
 
 ---
 
-# How agents run today, and how they should
+# Motivation: how agents run today
 
-<div class="grid grid-cols-[2fr_3fr] gap-6 text-sm">
+<div class="grid grid-cols-2 gap-10 pt-4 items-center">
 <div>
-
-**Today:** on your machine, as you
 
 <div class="bx bx-host">
 <div class="bx-label">Your laptop: one user, one kernel</div>
@@ -77,9 +77,37 @@ agent can run with fewer prompts and do more, safely.
 </div>
 <div>
 
-**How they should:** the rules held by the host
+- More than a year coding with AI agents, side by side in **tmux panes**. It works.
+- They run **as me**: everything I can reach, they can reach.
+- The rules are a prompt and the **permission prompts** I click through.
+- Giving agents access to production, or to your laptop's keys, is a **terrible idea**.
 
-<div class="bx bx-host text-xs">
+</div>
+</div>
+
+<div class="pt-8 text-xl text-center">
+
+**The LLM codes; we prompt for compliance.**
+
+</div>
+
+<!--
+This is how most of us run agents today, me included until this project: Claude Code in tmux panes,
+as my own user, on my own machine. Everything I can reach, it can reach: my SSH keys, git
+credentials, API keys, every file, the LAN, production. The rules are a CLAUDE.md and the
+permission prompts I click through. The LLM writes the code, and we prompt it to comply.
+
+And every prompt is friction: someone has to watch the panes. To let agents do more, with fewer
+prompts, the limits have to be held from outside the agent.
+-->
+
+---
+
+# Motivation: how they should run
+
+<div class="mx-auto pt-3" style="max-width:82%">
+
+<div class="bx bx-host text-sm">
 <div class="bx-label">Host: trusted. Every way out of a µVM ends at a host tool that checks it</div>
 <div class="bx bx-built" style="padding:0.4rem">
 <div class="bx-label" style="padding-bottom:0.2rem">µVM: its own kernel. Nothing inside is trusted</div>
@@ -107,30 +135,17 @@ agent can run with fewer prompts and do more, safely.
 </div>
 
 </div>
-</div>
 
-<div class="grid grid-cols-[2fr_3fr] gap-6 pt-3 text-base">
-<div>
-
-**The LLM codes; we prompt for compliance.**
-
-</div>
-<div>
+<div class="pt-4 text-xl text-center">
 
 **The LLM codes; the system enforces the rules.**
 
 </div>
-</div>
 
-<div class="text-xs opacity-70 pt-1">Green: built. Grey, dashed: designed, not built.</div>
+<div class="text-xs opacity-70 pt-2">Green: built. Grey, dashed: designed, not built.</div>
 
 <!--
-Left is how most of us run agents today, me included until this project: Claude Code in tmux panes,
-as my own user, on my own machine. Everything I can reach, it can reach: my SSH keys, git
-credentials, API keys, every file, the LAN, production. The rules are a CLAUDE.md and the
-permission prompts I click through. The LLM writes the code, and we prompt it to comply.
-
-Right is the design (docs/architecture.md), read top down. Here it's what the system does; the
+The design (docs/architecture.md), read top down. Here it's what the system does; the
 names come later (network control is barre, the chat room is mime, the lifecycle is jete, action and
 event requests are regisseur):
 - The agent gets its own µVM: its own kernel, a clone of the repo it works on, its skills on a
@@ -153,6 +168,8 @@ Code token is still inside the µVM: "holds no keys" is the design, waiting on k
 
 If asked "doesn't Claude Code have a sandbox?": it does, and devcontainers exist. They help. This is
 the same idea pushed further: a separate kernel per agent, and a policy the agent can't edit.
+
+The niche, if it fits: an open-source project for running AI agents on-prem, fast and secure.
 -->
 
 ---
