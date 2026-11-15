@@ -17,7 +17,7 @@ npm run export     # slides.pdf, a fallback copy (needs playwright-chromium, ins
 ## Still to fill in
 
 - The AI disclosure in your own words (slide 2).
-- Whether to show Claude Code live (slide 18). It works; keep the token file off screen.
+- Whether to show Claude Code live (slide 16). It works; keep the token file off screen.
 
 ## Fact sheet
 
@@ -80,6 +80,7 @@ On hemlock, in a terminal with a large font. Recorded runs are in [demos/](demos
 | 5 | Allowed: `getent hosts`, `curl -sI https://example.com`, SSH banner | `198.18.0.1`, `HTTP/2 200`, `SSH-2.0-...` | same |
 | 6 | Refused: github.io, https://github.com, https://1.1.1.1, http://192.168.0.1 | Exit codes 6, 35, 35, 56 | same |
 | 7 | The journal, filtered with `jq` | Four refusals with reasons, one `NXDOMAIN` | Backup slide "barre's log" |
+| 7b | `sudo nft list table inet jete` | jete's table: the per-VM redirect, input and forward chains | Backup slide "a proxied µVM's nftables rules" |
 | 8 | `barre allow ... 1.1.1.1; sleep 1`, then `curl -sI https://1.1.1.1` | `HTTP/2 301` | same |
 | 9 | `barre revoke`, then curl example.com | `Could not resolve host` | same |
 | 10 | `sudo barre-vm rm $id` | The id | |
@@ -125,10 +126,10 @@ Notes:
 
 ## Before presenting
 
-1. **Decide on the Claude Code demo** (slide 18). If you show it, rehearse it like the others.
+1. **Decide on the Claude Code demo** (slide 16). If you show it, rehearse it like the others.
 2. **Rehearse demos 1 to 3 twice** from a clean state, on the network you'll have there.
 3. **Decide on the half-second gap**: keep the `sleep 1`, or make `barre allow` wait until barre
    is listening.
-4. **Check slide 19's numbers** if more code lands: test counts, status labels.
+4. **Check slide 17's numbers** if more code lands: test counts, status labels.
 5. **Export the PDF** and keep it with the transcripts, offline.
 6. **Make the repository public**: the last slide links to it.

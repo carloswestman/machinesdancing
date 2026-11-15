@@ -57,7 +57,7 @@ showing it here."
 
 - More than a year of coding with AI agents, side by side in **tmux panes**.
 - It works. But to let them do more, with less friction and more output, they need **security and strict control**, held from outside the agent.
-- Agents with access to production, or to your laptop's keys, is a **terrible idea**.
+- Giving agents access to production, or to your laptop's keys, is a **terrible idea**.
 
 <div class="pt-6">
 
@@ -89,8 +89,6 @@ agent can run with fewer prompts and do more, safely.
 **The LLM decides**: judgment. Planning tickets, writing code, reviewing.
 
 **The system does**: deterministic procedures. CI/CD, ticket handover, branch updates, the bookkeeping.
-
-> We trust agents' judgment, not their compliance.
 
 </div>
 </div>
@@ -206,86 +204,13 @@ Principle 2 in practice: jete never learns what an agent is; barre never reads j
 usable on its own.
 
 mime will have a small MCP server in each µVM: the agent program sees mime as MCP tools ("send a
-message", "read my inbox"), and the server carries them to mime over vsock (see the next slide).
+message", "read my inbox"), and the server carries them to mime over vsock (shown in "The whole picture", near the end).
 
 The names are ballet: a jeté is a leap; the barre is the rail dancers hold on to; mime is the fixed
 vocabulary of gestures dancers use to talk to each other on stage; the régisseur runs the
 performances and calls the cues.
 
 Sources: docs/architecture.md (The tools), crates/.
--->
-
----
-
-# The whole picture
-
-<div class="fit-width">
-
-```mermaid
-flowchart LR
-    human([Human])
-    subgraph outside[Outside hemlock]
-        direction TB
-        internet[(Internet<br/>model API, registries)]
-        product[(Product repos<br/>the code agents work on)]
-        sysrepos[(System repos<br/>instance config, work, knowledge)]
-        ext[(GitHub, Jira<br/>code host, tracker)]
-    end
-
-    subgraph host[Host: hemlock]
-        cp[regisseur<br/>control plane: workflows, roles, connectors]
-        bus[mime<br/>agent message bus: channels, schemas, record]
-        gw[barre<br/>egress gateway: allowlist, credentials, log]
-        jete[jete<br/>µVM manager]
-        subgraph vm1[µVM: planner]
-            a1[Agent program<br/>Claude Code] --- s1[mime MCP server]
-            j1[jete-agent]
-        end
-        subgraph vm2[µVM: worker]
-            a2[Agent program<br/>Claude Code] --- s2[mime MCP server]
-            j2[jete-agent]
-        end
-    end
-
-    human -- direction, reviews, merges --> ext
-    human -. watches .-> bus
-    cp -- create, exec, destroy --> jete
-    jete -- boots --> vm1 & vm2
-    jete -. exec, vsock .-> j1 & j2
-    s1 & s2 -- vsock --> bus
-    bus <-- events, actions --> cp
-    cp <-- connectors --> ext
-    cp <--> sysrepos
-    a1 & a2 -- network --> gw
-    gw -- allowed names --> internet
-    gw -- git, by pull request --> product
-
-    classDef built fill:#d1fae5,stroke:#059669,color:#064e3b
-    classDef planned fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:5 5,color:#6b7280
-    class jete,gw,a1,a2,j1,j2 built
-    class cp,bus,s1,s2 planned
-```
-
-</div>
-
-<div class="text-sm opacity-80">Green: built. Grey, dashed: designed on paper, not built.</div>
-
-<!--
-The full design, from docs/architecture.md. Agents never talk to each other or to the outside
-directly: each µVM has exactly two ways out, both on the host. Its vsock channel to the bus, and its
-network link to the gateway.
-
-What exists today is the green part: jete boots the µVMs, barre is their only way out, and an agent
-(Claude Code) runs inside. mime and regisseur, which make it a "team", are next.
-
-Outside hemlock, by who reaches what: agents reach the internet and the product repos only through
-barre; regisseur reaches the system's own repos (instance config, work, knowledge) and the code
-host and tracker, through its connectors. The repos live on the code host, but each has its own
-writers, so each gets its own permissions (docs/architecture.md, Where things are stored).
-
-Source: docs/architecture.md (The picture), with each component's name, jete-agent added, the
-outside stores split by who reaches them, and the colours. The agent program is the AI agent (Claude Code); jete-agent is jete's small helper
-that runs commands in the µVM.
 -->
 
 ---
@@ -307,7 +232,9 @@ that runs commands in the µVM.
 - nftables 1.1.6
 - On a home LAN, joined to a tailnet
 
-<div class="pt-6 text-sm opacity-70">Cable management: not designed.</div>
+**The Mac builds, hemlock runs**: static musl binaries, copied over SSH by a cargo runner. `cargo test` on the Mac boots real µVMs on hemlock. No compilers on hemlock; Ansible owns its config.
+
+<div class="pt-4 text-sm opacity-70">Cable management: not designed.</div>
 
 </div>
 </div>
@@ -317,26 +244,12 @@ A laugh first: point at the black box, "that's where every µVM in this talk run
 
 hemlock is configured only by Ansible, from the Mac: nothing on it is set up by hand.
 
-Sources: docs/design/jete.md (Host), uname, firecracker --version and nft --version on hemlock.
--->
+The dev loop: everything targets x86_64-unknown-linux-musl. The runner is a small shell script
+(scripts/hemlock-run): binaries are named by content hash, so an unchanged binary isn't sent again.
+It means the tests that matter run against real Firecracker µVMs, not mocks.
 
----
-
-# The development setup
-
-**The Mac** builds, hemlock runs
-
-- Everything targets `x86_64-unknown-linux-musl`: static binaries
-- A **cargo runner** copies each binary to hemlock over SSH and runs it there
-- `cargo test` on the Mac boots real µVMs on hemlock
-- hemlock has no compilers; Ansible owns its config
-
-<!--
-The runner is a small shell script (scripts/hemlock-run): binaries are named by content hash, so
-an unchanged binary isn't sent again. It means the tests that matter run against real Firecracker
-µVMs, not mocks.
-
-Sources: docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
+Sources: docs/design/jete.md (Host), uname, firecracker --version and nft --version on hemlock;
+docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 -->
 
 ---
@@ -433,14 +346,7 @@ Fallback: show demos/1-vm-lifecycle.txt.
 
 # The network: one owner per µVM's egress
 
-A µVM's network has two concerns. Each has **exactly one** owner.
-
-| | Owner | Guarantees |
-|---|---|---|
-| **Isolation** | jete | The µVM's traffic leaves only through the exit chosen. Never the host's services, the LAN, the tailnet, other µVMs. Nothing connects in. |
-| **Egress policy** | the exit | What it may reach beyond that, and the record of it. |
-
-jete offers two exits, and a µVM gets **one**:
+jete owns **isolation**: never the host, the LAN, the tailnet or other µVMs; nothing connects in. The **exit** owns the policy. A µVM gets exactly **one** exit:
 
 - **Direct**: `jete run --allow 1.1.1.1 --dns 1.1.1.1`. jete's firewall is the policy, by address.
 - **Proxy**: `jete run --egress-proxy 15001`. **All** of its traffic goes to one host port. Whatever listens there is the policy: barre.
@@ -549,7 +455,7 @@ barre-vm is a short bash script: jete run --egress-proxy 15001, then barre allow
 address. The sleep 1 matters: barre picks up a new policy within half a second, and a request
 sent before that finds nothing listening and fails. (Known; see the status slide.)
 
-A failure alone proves nothing (your plan's point). The journal says where and why:
+A failed request alone proves nothing: it could be the network, or a typo. The journal says where and why:
   github.io        NXDOMAIN
   github.com 443   name not allowed on this port
   1.1.1.1:443      no rule for this address and port
@@ -557,6 +463,9 @@ A failure alone proves nothing (your plan's point). The journal says where and w
 
 Note the LAN one: in proxy mode, jete hands the connection to barre and barre refuses it. In
 direct mode, jete's firewall drops it and the request times out (tested in net.rs).
+
+Then, live, the rules that made this happen (the backup slide has an excerpt):
+  sudo nft list table inet jete
 
 Fallback: demos/2-egress-policy.txt.
 -->
@@ -603,9 +512,9 @@ Fallback: demos/2-egress-policy.txt, "demo 3" part.
 <div class="wrap-code pt-2">
 
 ```text
-$ scripts/claude-vm "Say hello to the BELUG folks!"
+$ scripts/claude-vm "Say hello to the BLUG folks!"
 ready in 1675 ms
-Hello, BELUG folks! 👋 Hope the meetings, the tinkering, and the Linux wrangling are all going well. Happy hacking from me and the user!
+Hello, BLUG folks! 👋 Hope the meetings, the tinkering, and the Linux wrangling are all going well. Happy hacking from me and the user!
 vm: 39195192
 ```
 
@@ -621,7 +530,7 @@ vm: 39195192
 <!--
 The output shown is a real run (demos/3-claude-code.txt). To run it live, keep the token file off
 screen; it takes about 6 s:
-  scripts/claude-vm "Say hello to the BELUG folks!"
+  scripts/claude-vm "Say hello to the BLUG folks!"
   ssh hemlock journalctl -u barre -o cat | grep ID     # api.anthropic.com, and nothing else
 
 Honest caveat: the token is inside the µVM while Claude Code runs, so anything in that µVM could use
@@ -676,6 +585,81 @@ adds credentials (the model API, GitHub), with its own CA that the guest trusts.
 stays pass-through.
 
 Source: docs/design/barre.md (Known limits, Phase 2).
+-->
+
+---
+
+# The whole picture
+
+<div class="fit-width">
+
+```mermaid
+flowchart LR
+    human([Human])
+    subgraph outside[Outside hemlock]
+        direction TB
+        internet[(Internet<br/>model API, registries)]
+        product[(Product repos<br/>the code agents work on)]
+        sysrepos[(System repos<br/>instance config, work, knowledge)]
+        ext[(GitHub, Jira<br/>code host, tracker)]
+    end
+
+    subgraph host[Host: hemlock]
+        cp[regisseur<br/>control plane: workflows, roles, connectors]
+        bus[mime<br/>agent message bus: channels, schemas, record]
+        gw[barre<br/>egress gateway: allowlist, credentials, log]
+        jete[jete<br/>µVM manager]
+        subgraph vm1[µVM: planner]
+            a1[Agent program<br/>Claude Code] --- s1[mime MCP server]
+            j1[jete-agent]
+        end
+        subgraph vm2[µVM: worker]
+            a2[Agent program<br/>Claude Code] --- s2[mime MCP server]
+            j2[jete-agent]
+        end
+    end
+
+    human -- direction, reviews, merges --> ext
+    human -. watches .-> bus
+    cp -- create, exec, destroy --> jete
+    jete -- boots --> vm1 & vm2
+    jete -. exec, vsock .-> j1 & j2
+    s1 & s2 -- vsock --> bus
+    bus <-- events, actions --> cp
+    cp <-- connectors --> ext
+    cp <--> sysrepos
+    a1 & a2 -- network --> gw
+    gw -- allowed names --> internet
+    gw -- git, by pull request --> product
+
+    classDef built fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef planned fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:5 5,color:#6b7280
+    class jete,gw,a1,a2,j1,j2 built
+    class cp,bus,s1,s2 planned
+```
+
+</div>
+
+<div class="text-sm opacity-80">Green: built. Grey, dashed: designed on paper, not built.</div>
+
+<!--
+Where this is going: you've seen the green part working. Now the whole design.
+
+The full design, from docs/architecture.md. Agents never talk to each other or to the outside
+directly: each µVM has exactly two ways out, both on the host. Its vsock channel to the bus, and its
+network link to the gateway.
+
+What exists today is the green part: jete boots the µVMs, barre is their only way out, and an agent
+(Claude Code) runs inside. mime and regisseur, which make it a "team", are next.
+
+Outside hemlock, by who reaches what: agents reach the internet and the product repos only through
+barre; regisseur reaches the system's own repos (instance config, work, knowledge) and the code
+host and tracker, through its connectors. The repos live on the code host, but each has its own
+writers, so each gets its own permissions (docs/architecture.md, Where things are stored).
+
+Source: docs/architecture.md (The picture), with each component's name, jete-agent added, the
+outside stores split by who reaches them, and the colours. The agent program is the AI agent (Claude Code); jete-agent is jete's small helper
+that runs commands in the µVM.
 -->
 
 ---
