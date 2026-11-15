@@ -26,14 +26,14 @@ person, ends in a pull request that the human reviews and merges. That needs ste
 
 An **instance** is one team's setup: the repos its agents work on, what each agent may do there,
 what its µVMs may reach, and which credentials they use, by name. It's the *instance config* store
-of [architecture.md](architecture.md#where-things-are-stored), and it lives outside this repo: this repo
-holds the tools, generic, with no team's setup in it (principle 4).
+of [architecture.md](architecture.md#where-things-are-stored). It is never committed to this repo:
+this repo holds the tools, generic and open source, with no one's setup in it (principle 4). An
+instance is a repo of its own, or a directory of configuration on the host.
 
-- **Today:** one instance, whose only repo is machinesdancing.
-- **Later:** an instance for the human's company, with its own repos, its own GitHub identity and
-  its own credentials. Nothing in the tools changes; the instance does. The company has agreed.
-  Before that instance: the model access is one the company's use allows (architecture's open
-  question 2), and G2 keeps the secrets out of the µVM.
+- **Today:** one instance, whose only repo is machinesdancing. Its configuration, too, lives
+  outside this repo.
+- **Later:** more instances, each with its own repos, GitHub identity and credentials. Nothing in
+  the tools changes; the instance does.
 
 The instance config's format starts as small as step 4 needs and grows with each step: roles and
 channels with mime, rules with regisseur.
