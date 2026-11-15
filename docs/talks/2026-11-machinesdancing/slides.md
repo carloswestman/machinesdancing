@@ -1,7 +1,7 @@
 ---
 theme: neversink
 colorSchema: light
-title: 'Firecracker, Rust and Linux: Building an isolated execution environment for AI agents'
+title: 'machinesdancing: Firecracker, Rust and Linux'
 info: |
   machinesdancing: µVMs and an egress gateway for AI agents.
   Bellingham Linux Users Group, Show and See.
@@ -10,16 +10,25 @@ transition: slide-left
 mdc: true
 ---
 
-# Firecracker, Rust and Linux
+# machinesdancing
 
-Building an isolated execution environment for AI agents
+<div class="text-3xl pt-2">Firecracker, Rust and Linux</div>
+<div class="text-xl opacity-80 pt-1">Building an isolated execution environment for AI agents</div>
+
+<div class="pt-10 text-lg">
+
+**Carlos Westman** · CTO at relativo.io<br/>
+Recently moved from Squamish, BC to Bellingham, WA
+
+</div>
 
 :: note ::
 
-Carlos Westman · Bellingham Linux Users Group, Show and See · 18 November 2026
+Bellingham Linux Users Group, Show and See · 18 November 2026
 
 <!--
-Opening, under a minute:
+Opening, under a minute. Introduce yourself first: Carlos, CTO at relativo.io, new in Bellingham
+after moving down from Squamish. Then:
 
 "I'm building infrastructure for running AI agents: each one gets its own small virtual machine,
 and everything it sends to the network goes through a gateway that decides, by name, what it may
