@@ -16,7 +16,7 @@ npm run export     # slides.pdf, a fallback copy (needs playwright-chromium, ins
 
 ## Still to fill in
 
-- The AI disclosure in your own words (slide 2).
+- The AI disclosure in your own words (slide 6, "How I work").
 - Whether to show Claude Code live (slide 18). It works; keep the token file off screen.
 
 ## Fact sheet
@@ -121,7 +121,7 @@ Notes:
     rest. Known gap: domain fronting. Phase 2 decrypts only where it adds credentials.
 11. **What runs as root?** `jete` (the jailer needs it) and `barre allow`. Each Firecracker runs as
     its own user; barre's service as `barre`, without capabilities.
-12. **How did you use AI, and how do you check it?** See slide 2. Tests boot real VMs; every
+12. **How did you use AI, and how do you check it?** See slide 6, "How I work". Tests boot real VMs; every
     status claim points at one.
 
 ## Before presenting

@@ -32,27 +32,6 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 
 ---
 
-# Why: to learn
-
-- First of all, to **learn**: Firecracker, KVM, nftables and Rust, by building something real.
-- A talk at **SeaGL** by the AWS Lambda team on **Firecracker**: I wanted to play with it.
-- **Disclosure:** the code is AI-generated, by Claude Code. I've studied it, reviewed it, and tested it on real Firecracker microVMs (µVMs).
-- **The architecture is mine:** the principles, the design, and every decision about what gets built and how.
-
-<!--
-Firecracker is what AWS Lambda runs on: thousands of short-lived µVMs, each booted in a fraction of a
-second. That's the shape agents need too.
-
-The disclosure: say it plainly, no apology, then move on. It sets the frame for questions: you can explain why
-everything is the way it is; for a line-by-line detail, "I'd rather check the code than guess."
-
-If asked "did AI write all of this?": "The code, yes. The architecture and the decisions are mine, and
-I've reviewed and tested what's there. There are details I'm still learning, which is part of why I'm
-showing it here."
--->
-
----
-
 # Why: the official reason
 
 - More than a year of coding with AI agents, side by side in **tmux panes**.
@@ -275,6 +254,22 @@ kernel. For code nobody reviewed, I wanted the kernel boundary too, and Firecrac
 enough to have one per agent.
 
 Source: PRINCIPLES.md (wording shortened).
+-->
+
+---
+
+# How I work
+
+- **Disclosure:** the code is AI-generated, by Claude Code. I've studied it, reviewed it, and tested it on real Firecracker microVMs (µVMs).
+- **The architecture is mine:** the principles, the design, and every decision about what gets built and how.
+
+<!--
+The disclosure: say it plainly, no apology, then move on. It sets the frame for questions: you can explain why
+everything is the way it is; for a line-by-line detail, "I'd rather check the code than guess."
+
+If asked "did AI write all of this?": "The code, yes. The architecture and the decisions are mine, and
+I've reviewed and tested what's there. There are details I'm still learning, which is part of why I'm
+showing it here."
 -->
 
 ---
