@@ -133,5 +133,5 @@ Notes:
 4. **Check slide 19's numbers** if more code lands: test counts, status labels.
 5. **Export the PDF** and keep it with the transcripts, offline.
 6. **Make the repository public**: the last slide links to it.
-7. **When it goes open source, add a license** (MIT, Apache-2.0, GPL…). "How I work" says it
-   *becomes* open source, so this can wait; if asked "what license?", have an answer ready.
+7. **The license is Apache 2.0** (PR #22). If asked why: permissive, so forks and company use
+   are fine; it has a patent grant; and services can still be built on top.
