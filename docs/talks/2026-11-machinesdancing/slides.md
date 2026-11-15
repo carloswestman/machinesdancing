@@ -138,7 +138,7 @@ prompts, the limits have to be held from outside the agent.
 
 <div class="pt-4 text-xl text-center">
 
-**The LLM codes; the system enforces the rules.**
+**The LLM codes, the system enforces the rules and guards the secrets.**
 
 </div>
 
