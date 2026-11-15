@@ -180,7 +180,7 @@ The niche, if it fits: an open-source project for running AI agents on-prem, fas
 
 # Design principles
 
-<div class="text-xs opacity-70 pb-3">From <code>PRINCIPLES.md</code>, the six that matter most today. <span style="color:#059669">●</span> held by what's built.</div>
+<div class="text-xs opacity-70 pb-3">From <code>PRINCIPLES.md</code>, the seven that matter most today. <span style="color:#059669">●</span> held by what's built.</div>
 
 <div class="text-base tight pt-2">
 
@@ -188,10 +188,11 @@ The niche, if it fits: an open-source project for running AI agents on-prem, fas
 |---|---|
 | **Enforced, not requested** <span style="color:#059669">●</span> | The rules live in the host, never in the prompt |
 | **One µVM per agent** <span style="color:#059669">●</span> | Its own kernel; created for the work, destroyed after |
-| **Deny by default** <span style="color:#059669">●</span> | Network, files, tools and secrets granted by role; nothing implied |
-| **Secrets stay outside** | Minimum keys in the agent; the system adds the rest on the way out |
-| **Identity belongs to the system** | From the hypervisor, not from what the agent says; declared channels only |
-| **Judgment to the LLM, procedure to the system** | Workflows do CI, tickets, branches; a human approves every merge |
+| **Deny by default** <span style="color:#059669">●</span> | Network, files, tools, secrets: granted by role, never implied |
+| **Secrets stay outside** | Minimum keys inside; the rest added on the way out |
+| **Identity belongs to the system** | From the hypervisor, not the agent's word; declared channels |
+| **Judgment to the LLM, procedure to the system** | Workflows do CI, tickets, branch updates |
+| **Git is the source of truth** | Work is a PR; tickets, config, skills in git; a human merges |
 
 </div>
 
@@ -227,10 +228,14 @@ If asked "why not containers?": containers aren't "insecure", they share the hos
 nobody reviewed, I wanted the kernel boundary too, and Firecracker makes a VM cheap enough to have
 one per agent.
 
-PRINCIPLES.md has sixteen; the rest are about agents working as a team (git-centric work, evidence
-for claims, procedures as skills, the record), and belong to the parts not built yet.
+PRINCIPLES.md has sixteen; the rest are about agents working as a team (evidence for claims,
+procedures as skills, the record), and belong to the parts not built yet.
 
-Source: PRINCIPLES.md (1, 3, 4, 7, 13, 14; wording shortened, secrets drawn from 3 and the
+Git: every piece of work is a pull request, and an open PR is the claim on it. Tickets, the team's
+configuration and the skills live in git too, so the record is something you can diff and review.
+Merging is the human's: the agent can push a branch, never merge to main.
+
+Source: PRINCIPLES.md (1, 3, 4, 7, 8, 10, 13, 14; wording shortened, secrets drawn from 3 and the
 architecture's credentials).
 -->
 
