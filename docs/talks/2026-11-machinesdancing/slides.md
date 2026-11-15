@@ -247,12 +247,13 @@ architecture's credentials).
 
 # How I work
 
-- **Disclosure:** the code is AI-generated, by Claude Code. I've studied it, reviewed it, and tested it on real Firecracker microVMs (µVMs).
-- **The architecture is mine:** the principles, the design, and every decision about what gets built and how.
+- **Implementation** developed with Claude Code.
+- **Architecture, principles and engineering decisions** are mine.
+- **Code reviewed and tested** on real Firecracker microVMs (µVMs).
 - **Open source:** the project becomes an open-source project, for running AI agents on-prem, fast and secure, on hardware you own.
 
 <!--
-The disclosure: say it plainly, no apology, then move on. It sets the frame for questions: you can explain why
+Say it plainly, no apology, then move on. It sets the frame for questions: you can explain why
 everything is the way it is; for a line-by-line detail, "I'd rather check the code than guess."
 
 If asked "did AI write all of this?": "The code, yes. The architecture and the decisions are mine, and
