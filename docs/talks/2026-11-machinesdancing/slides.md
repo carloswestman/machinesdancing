@@ -915,6 +915,17 @@ Repository: github.com/carloswestman/machinesdancing (on the last slide).
 -->
 
 ---
+layout: default
+class: full-photo
+---
+
+<div class="photo-credit">Photo: Raimond Spekking, CC BY-SA 4.0, via Wikimedia Commons</div>
+
+<!--
+No words. Let the laugh happen, then move on to Thank you.
+-->
+
+---
 layout: center
 class: text-center
 ---
