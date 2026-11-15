@@ -82,11 +82,7 @@ agent can run with fewer prompts and do more, safely.
 
 <div class="bx bx-host">
 <div class="bx-label">Your laptop: one user, one kernel, tmux panes</div>
-<div class="bx-row">
-<div class="bx bx-risk">Claude Code</div>
-<div class="bx bx-risk">Claude Code</div>
-<div class="bx bx-risk">Claude Code</div>
-</div>
+<div class="bx bx-risk mx-auto text-center" style="width:55%">Claude Code</div>
 <div class="pt-3 text-center">
 <span class="chip bx-risk">~/.ssh</span>
 <span class="chip bx-risk">git credentials</span>
@@ -95,7 +91,7 @@ agent can run with fewer prompts and do more, safely.
 <span class="chip bx-risk">the LAN</span>
 <span class="chip bx-risk">production</span>
 <span class="chip bx-risk">any site</span>
-<span class="chip bx-risk">each other's work</span>
+<span class="chip bx-risk">other agents' work</span>
 </div>
 </div>
 
@@ -107,15 +103,11 @@ The limits: instructions and permission prompts, **inside the agent**.
 </div>
 <div>
 
-**How they should:** a µVM each
+**How they should:** in a µVM
 
 <div class="bx bx-host">
 <div class="bx-label">Host: KVM, nftables, the policy</div>
-<div class="bx-row">
-<div class="bx bx-built">µVM<br/>Claude Code<br/><span class="text-xs">no keys</span></div>
-<div class="bx bx-built">µVM<br/>Claude Code<br/><span class="text-xs">no keys</span></div>
-<div class="bx bx-built">µVM<br/>Claude Code<br/><span class="text-xs">no keys</span></div>
-</div>
+<div class="bx bx-built mx-auto text-center" style="width:55%">µVM: Claude Code<br/><span class="text-xs">no keys</span></div>
 <div class="bx-row text-xs">
 <div class="bx bx-built">network: allowed names only</div>
 <div class="bx bx-planned">credentials added on the way out</div>
@@ -305,12 +297,22 @@ Sources: docs/architecture.md (The tools), crates/.
 **On the host**
 
 <div class="bx bx-planned">regisseur: control plane. Roles, tickets, workflows; spawns agents</div>
-<div class="bx-row">
+<div class="grid grid-cols-3 gap-x-2">
+<div class="flex flex-col">
 <div class="bx bx-built">jete<br/><span class="text-xs">µVM manager</span></div>
-<div class="bx bx-built">barre<br/><span class="text-xs">egress gateway</span></div>
-<div class="bx bx-planned">mime<br/><span class="text-xs">message bus</span></div>
+<div class="bx">Firecracker and jailer</div>
+<div class="bx">nftables</div>
 </div>
-<div class="bx">Firecracker and jailer · nftables · systemd</div>
+<div class="flex flex-col">
+<div class="bx bx-built">barre<br/><span class="text-xs">egress gateway</span></div>
+<div class="bx">SO_ORIGINAL_DST</div>
+<div class="bx">systemd sandbox</div>
+</div>
+<div class="flex flex-col">
+<div class="bx bx-planned">mime<br/><span class="text-xs">message bus</span></div>
+<div class="bx flex-1 flex items-center justify-center">vsock</div>
+</div>
+</div>
 <div class="bx">Linux 7.0 and KVM · Ubuntu Server 26.04</div>
 <div class="bx">hemlock: i5-10500T, 16 GB</div>
 
@@ -340,7 +342,10 @@ Each layer knows nothing about the ones above it.
 
 <!--
 Read it bottom up. Hardware, Linux with KVM, then the pieces I didn't write: Firecracker and its
-jailer, nftables, systemd. On those, three tools of mine side by side, none of which knows about the
+jailer, nftables, systemd, each under the tool that uses it: jete drives Firecracker and writes the
+nftables rules that send a µVM's traffic to barre; barre picks up those connections, reads where
+they were going (SO_ORIGINAL_DST) and runs as a sandboxed systemd service, its own user, no
+capabilities; mime will talk to the µVMs over vsock. On those, three tools of mine side by side, none of which knows about the
 others: jete runs µVMs, barre decides what their network may reach, mime will carry their messages.
 On top, regisseur composes the three; it's the only one that knows what an "agent" or a "ticket" is.
 
