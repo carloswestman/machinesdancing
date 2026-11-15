@@ -41,7 +41,7 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 </div>
 <div class="agenda-part">
 <div class="agenda-title">2 · First tools and tests</div>
-<div>The lab · jete: a µVM in 1.7 s, demo · barre: the network by name, demos · Claude Code in a µVM</div>
+<div>The lab · jete: µVM orchestration, demo · barre: network control, demos · Claude Code in a µVM</div>
 </div>
 <div class="agenda-part">
 <div class="agenda-title">3 · Where it stands</div>
@@ -429,7 +429,9 @@ docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 
 ---
 
-# jete: a µVM in 1.7 seconds
+# jete: µVM orchestration
+
+<div class="opacity-80 pb-2">So far: ready in 1.7 s, without much optimization. About 1 s of that is the guest's systemd.</div>
 
 | Concern | Choice |
 |---|---|
@@ -447,6 +449,10 @@ plus 128 MiB.
 
 Reflinks: cp --reflink on XFS is instant and shares blocks until written. So the image size barely
 matters for boot.
+
+Boot time: about 0.6 s is the kernel, about 1.1 s userspace, almost all of it systemd bringing the
+guest up to jete-agent. Nothing has been tuned yet: a trimmed systemd, snapshots and a warm pool
+are on the list for when spawning on demand needs them.
 
 Sources: docs/design/jete.md (Stack, M1 plan), crates/jete/src/vm.rs.
 -->
@@ -519,22 +525,40 @@ Fallback: show demos/1-vm-lifecycle.txt.
 
 ---
 
-# The network: one owner per µVM's egress
+# barre: network control
 
-jete owns **isolation**: never the host, the LAN, the tailnet or other µVMs; nothing connects in. The **exit** owns the policy. A µVM gets exactly **one** exit:
+<div class="opacity-80 pb-2">So far: phase 1, by name. No TLS decryption yet; key injection is next.</div>
 
-- **Direct**: `jete run --allow 1.1.1.1 --dns 1.1.1.1`. jete's firewall is the policy, by address.
-- **Proxy**: `jete run --egress-proxy 15001`. **All** of its traffic goes to one host port. Whatever listens there is the policy: barre.
+<div class="text-sm">
+
+| Concern | Choice |
+|---|---|
+| Ownership | **jete** owns isolation, **barre** the policy. A µVM gets one exit; nothing listening, nothing out |
+| Interception | **nftables** redirects all of a µVM's TCP and DNS to barre: the guest can't opt out |
+| DNS | barre answers it: a **synthetic address** per allowed name, `NXDOMAIN` for the rest |
+| Decision | By **name and port**; checks TLS SNI and the HTTP Host; public addresses only |
+| Traffic | Bytes copied both ways, **unread**: no TLS decryption |
+| Policy | Files written by root (`barre allow`), applied within 0.5 s; `revoke` cuts the µVM off |
+| Itself | Its own user, **no capabilities**, systemd sandbox |
+| Record | One **JSON line** per DNS answer and per connection, in the journal |
+
+</div>
 
 <!--
-This was a design correction mid-project: at first jete and the gateway would both have had a say
-over the same µVM's traffic. Splitting it like this means there's never a question of which one
-let something through. jete refuses to mix the two.
+The same shape as jete's slide: what it does, and the choice for each part.
+
+Ownership was a design correction mid-project: at first jete and the gateway would both have had a
+say over the same µVM's traffic. Now a µVM has exactly one exit. Direct (jete run --allow ...):
+jete's firewall is the policy, by address, for development and tests. Proxy (jete run
+--egress-proxy 15001): all of its traffic goes to one host port, and whatever listens there is the
+policy: barre. jete refuses to mix the two, so there's never a question of which one let something
+through.
 
 It's the same split as a service mesh (Istio/Envoy): the firewall sends everything to the proxy;
 the proxy holds the policy. And the guest needs no proxy settings: it can't opt out.
 
-Source: docs/design/barre.md (Who owns what).
+Sources: docs/design/barre.md (Scope, Who owns what, Phase 2), crates/barre/src,
+ansible/roles/barre/templates/barre.service.j2.
 -->
 
 ---
