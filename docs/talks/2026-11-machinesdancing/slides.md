@@ -34,32 +34,19 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 
 # Agenda
 
-<div class="grid grid-cols-2 gap-10 pt-4 text-lg">
-<div>
-
-**The idea: an architecture**
-
-1. **Motivation**: how agents run today, and how they should
-2. **The design**: principles and the stack
-
+<div class="agenda pt-6">
+<div class="agenda-part">
+<div class="agenda-title">1 · The idea: an architecture</div>
+<div>Motivation: how agents run today, and how they should · Design principles · The stack</div>
 </div>
-<div>
-
-**First tools and tests**
-
-3. **The lab**: one mini PC
-4. **jete**: a µVM in 1.7 seconds, demo
-5. **barre**: the network, by name, demos
-6. **An agent inside**: Claude Code in a µVM
-
+<div class="agenda-part">
+<div class="agenda-title">2 · First tools and tests</div>
+<div>The lab · jete: a µVM in 1.7 s, demo · barre: the network by name, demos · Claude Code in a µVM</div>
 </div>
+<div class="agenda-part">
+<div class="agenda-title">3 · Where it stands</div>
+<div>What works · The limits · What's next · Questions for you</div>
 </div>
-
-<div class="pt-8 text-lg">
-
-7. **Where it stands**: what works, the limits, what's next
-8. **Questions for you**
-
 </div>
 
 <!--
