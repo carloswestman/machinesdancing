@@ -112,12 +112,12 @@ prompts, the limits have to be held from outside the agent.
 <div class="bx bx-built" style="padding:0.4rem">
 <div class="bx-label" style="padding-bottom:0.2rem">µVM: its own kernel. Nothing inside is trusted</div>
 <div class="bx text-center text-sm">Claude Code <span class="text-xs opacity-70">· judgment: plans, codes, reviews</span></div>
-<div class="bx-row">
-<div class="bx bx-planned">repo clone</div>
+<div class="bx-row text-xs">
+<div class="bx bx-planned">git, but can't merge to main</div>
 <div class="bx bx-planned">skills, read-only</div>
-<div class="bx bx-planned">holds no keys</div>
-<div class="bx bx-planned">chat client (MCP)</div>
-<div class="bx bx-built">guest agent</div>
+<div class="bx bx-planned">holds minimum keys</div>
+<div class="bx bx-planned">agent chat only through an MCP tool</div>
+<div class="bx bx-built">guest agent: runs commands inside the µVM</div>
 </div>
 </div>
 <div class="grid grid-cols-3 gap-x-2">
@@ -148,8 +148,11 @@ prompts, the limits have to be held from outside the agent.
 The design (docs/architecture.md), read top down. Here it's what the system does; the
 names come later (network control is barre, the chat room is mime, the lifecycle is jete, action and
 event requests are regisseur):
-- The agent gets its own µVM: its own kernel, a clone of the repo it works on, its skills on a
-  read-only disk, and no keys. Nothing inside the µVM is trusted, the agent included.
+- The agent gets its own µVM: its own kernel, git for the repo it works on (it can push a branch,
+  but merging to main is the human's), its skills on a read-only disk, and the minimum keys: ideally
+  none, at most the narrowest one its agent program insists on. It talks to other agents only
+  through an MCP tool. A guest agent lets the host run commands inside. Nothing inside the µVM is
+  trusted, the agent included.
 - Exactly two ways out, both ending at something on the host that checks them. The network: all of
   it goes through network control, which allows names, logs everything, and (later) injects the
   keys on the way out, so the agent never holds them. And vsock to the controlled chat room: only
@@ -164,7 +167,8 @@ The point to land: the LLM still does the creative work. What changes is who hol
 not a prompt the agent can misread or be talked out of, but the host.
 
 Honest status: green is built (the µVM, the lifecycle, network control by name). Today the Claude
-Code token is still inside the µVM: "holds no keys" is the design, waiting on key injection.
+Code token is still inside the µVM. "Minimum keys" means: once key injection lands, the µVM holds
+none it doesn't have to.
 
 If asked "doesn't Claude Code have a sandbox?": it does, and devcontainers exist. They help. This is
 the same idea pushed further: a separate kernel per agent, and a policy the agent can't edit.
