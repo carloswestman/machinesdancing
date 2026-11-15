@@ -42,20 +42,29 @@ channels with mime, rules with regisseur.
 
 The agent is a developer: it clones, branches, commits, pushes and opens pull requests with `git`
 and `gh`, the tools it already knows well. No extra tool wraps git, and no tokens are spent on one.
-What it may do is decided by what it holds and where it can reach, not by what it's told:
+The security model is git's own: the agent is trusted like a developer on the team, to push
+branches and open pull requests, and the guardrail is the merge into `main`, which only the human
+can make. What it may do is decided by what it holds and where it can reach, not by what it's told:
 
 | Limit | Enforced by |
 |---|---|
 | Which repos | The credential: a GitHub App installed on the instance's repos only, or a fine-grained token scoped to them. |
 | What it may do there | The credential's permissions: contents and pull requests, read and write. No administration, no `workflows`, so a push that changes `.github/workflows/` is refused by GitHub. |
-| No merging into `main` | Branch protection or a ruleset on the instance's repos: changes reach `main` only by pull request, with the human's review (principle 8). |
+| No merging into `main` | Branch protection or a ruleset on the instance's repos: changes reach `main` only by pull request, with a code owner's review, and the human is the only code owner (principle 8). An agent's approval never counts. |
 | Where it can reach | barre: `github.com` and `api.github.com` added to the µVM's rules, by the instance. |
 | Who it is | Its own GitHub identity, not the human's: the App's bot user, or a machine user. The human can then review and approve its pull requests, and its actions are recorded as its own. |
+| Which agent did what | Each µVM sets its git author to its ticket, so every commit says where it came from. |
 
 A GitHub App is the better default: its tokens are minted on the host for an hour at a time, scoped
 to the instance's repos, and the agent shows up as itself. Until G2, the µVM holds such a token in
 memory, the way it holds the Claude token today: sent over stdin, never on a command line or a disk.
 G2 then takes it out.
+
+The identity can push to any unprotected branch, including another agent's. That's how git works
+for a team too, and it's left to review: the human sees every commit before a merge, and each commit
+names its ticket. When agents run at the same time, a regisseur rule can flag a pull request whose
+branch has commits from another ticket. barre stays a network tool: it doesn't read git or GitHub's
+API.
 
 ## Building the harness with the harness
 
