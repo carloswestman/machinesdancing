@@ -37,7 +37,7 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 <div class="text-lg pt-4">
 
 1. **Motivation**: how agents run today, and how they should
-2. **The design**: the solution, the principles, the stack
+2. **The design**: principles and the stack
 3. **The lab**: one mini PC
 4. **jete**: a µVM in 1.7 seconds, demo
 5. **barre**: the network, by name, demos
@@ -178,40 +178,41 @@ The niche, if it fits: an open-source project for running AI agents on-prem, fas
 
 ---
 
-# The solution
+# Design principles
 
-<div class="grid grid-cols-2 gap-8 pt-2">
-<div>
+<div class="text-xs opacity-70 pb-3">From <code>PRINCIPLES.md</code>, the six that matter most today. <span style="color:#059669">●</span> held by what's built.</div>
 
-- **Fast and ephemeral**: a µVM per agent, booted in under 2 s, destroyed after
-- **Controlled access**: only the network, files and secrets their role grants
-- **Controlled tools**: only the tools their role grants
-- **Controlled communication**: only declared channels, every message checked and recorded
+<div class="text-base tight pt-2">
 
-</div>
-<div>
-
-**The LLM decides**: judgment. Planning tickets, writing code, reviewing.
-
-**The system does**: deterministic procedures. CI/CD, ticket handover, branch updates, the bookkeeping.
+| | |
+|---|---|
+| **Enforced, not requested** <span style="color:#059669">●</span> | The rules live in the host, never in the prompt |
+| **One µVM per agent** <span style="color:#059669">●</span> | Its own kernel; created for the work, destroyed after |
+| **Deny by default** <span style="color:#059669">●</span> | Network, files, tools and secrets granted by role; nothing implied |
+| **Secrets stay outside** | Minimum keys in the agent; the system adds the rest on the way out |
+| **Identity belongs to the system** | From the hypervisor, not from what the agent says; declared channels only |
+| **Judgment to the LLM, procedure to the system** | Workflows do CI, tickets, branches; a human approves every merge |
 
 </div>
-</div>
 
-<div class="mt-6 p-4 rounded border-l-4 border-emerald-600 bg-emerald-50 text-lg">
+<div class="mt-6 p-4 rounded border-l-4 border-emerald-600 bg-emerald-50">
 
 **Agent messages and actions are authorized by a deterministic policy that sits outside the agent, with identity the agent can't forge.**
 
 </div>
 
 <!--
+Don't read the table; say the idea, point at the green dots.
+
 The core idea: anything that must hold is enforced by the system (the µVM, the gateway, the bus), not
 written in a prompt. An agent can misread an instruction, or be talked out of it by something it read
-on the web.
+on the web. The green ones are what the demos show: a µVM per agent, and a network denied by default.
+Deny by default is held for the network today; files, tools and secrets come with the rest.
 
-And an LLM shouldn't be trusted with what's deterministic: if a step is the same every time (run CI,
-hand a ticket over, update a branch after a merge), the system does it. The LLM gets the parts that
-need judgment.
+Secrets: today the Claude Code token is inside the µVM. Key injection at the gateway is next.
+
+Judgment and procedure: if a step is the same every time (run CI, hand a ticket over, update a
+branch after a merge), the system does it. The LLM gets the parts that need judgment.
 
 The highlighted line is the original part. The pieces exist elsewhere (hooks that approve tool calls,
 guardrail rules, workflow engines), but mostly inside the agent's own trust domain. Here the gate is
@@ -222,59 +223,15 @@ travel, so a denied action can't be laundered through another agent.
 Honest limit: a deterministic gate checks form, not meaning. It limits the blast radius; it doesn't
 make an agent's ideas good.
 
-Next: these ideas, written down as principles.
--->
+If asked "why not containers?": containers aren't "insecure", they share the host's kernel. For code
+nobody reviewed, I wanted the kernel boundary too, and Firecracker makes a VM cheap enough to have
+one per agent.
 
----
+PRINCIPLES.md has sixteen; the rest are about agents working as a team (git-centric work, evidence
+for claims, procedures as skills, the record), and belong to the parts not built yet.
 
-# Principles
-
-<div class="text-xs opacity-80 pb-2">From <code>PRINCIPLES.md</code>. Every design decision must comply with them. <span style="color:#059669">●</span> held by what's built today.</div>
-
-<div class="grid grid-cols-2 gap-x-6 text-xs principles">
-<div>
-
-| | | |
-|---|---|---|
-| 1 | **Enforced, not requested** <span style="color:#059669">●</span> | What must hold is enforced by the system, never asked of agents |
-| 2 | **Tools, not a monolith** <span style="color:#059669">●</span> | Small tools; lower ones know nothing of the layers above |
-| 3 | **Isolation** <span style="color:#059669">●</span> | Each agent in its own µVM: a hypervisor, not a shared kernel |
-| 4 | **Deny by default** <span style="color:#059669">●</span> | Every resource, peer and message type is granted explicitly |
-| 5 | **Strict channels** | Agents talk only over declared channels |
-| 6 | **Control before delivery** | Every message and action is checked; refusals give a reason |
-| 7 | **Identity belongs to the system** | No claiming identities; a peer's message carries no authority |
-| 8 | **Human authority isn't delegable** | Merges, deploys: a human approves each one |
-
-</div>
-<div>
-
-| | | |
-|---|---|---|
-| 9 | **The record is the decision** | Not in git, the code host or the bus log? It didn't happen |
-| 10 | **Git-centric** | Work is pull requests; tickets and config live in git |
-| 11 | **Claims carry evidence** | A stated fact cites its source |
-| 12 | **Procedures are knowledge** | Recurring tasks become versioned skills |
-| 13 | **The system runs the lifecycle** | Transitions and bookkeeping are done by the system |
-| 14 | **Agents exist on demand** | Spawned for work, destroyed after; events wake them |
-| 15 | **Declarative** | Roles, policies, workflows: configuration in git |
-| 16 | **Observable** <span style="color:#059669">●</span> | Every message, decision and event is recorded and visible |
-
-</div>
-</div>
-
-<!--
-This is the hinge of the talk: the problem was "agents need to act, but we can't just ask them to
-behave". These are the rules the system holds instead. Everything after this is how.
-
-Don't read them all. Point at the green ones, the ones today's tools hold, and read 1 and 4 aloud:
-the demos prove them. The rest are about agents working as a team (channels, approvals, the
-record), and belong to mime and regisseur, the bus and the control plane, which aren't built yet.
-
-If asked "why not containers?" (principle 3): containers aren't "insecure", they share the host's
-kernel. For code nobody reviewed, I wanted the kernel boundary too, and Firecracker makes a VM cheap
-enough to have one per agent.
-
-Source: PRINCIPLES.md (wording shortened).
+Source: PRINCIPLES.md (1, 3, 4, 7, 13, 14; wording shortened, secrets drawn from 3 and the
+architecture's credentials).
 -->
 
 ---
@@ -321,7 +278,7 @@ showing it here."
 Name each one once; they come back through the talk. jete and barre are the two that hold the
 boundary, and the demos are about them.
 
-Principle 2 in practice: jete never learns what an agent is; barre never reads jete's state. Each is
+Tools, not a monolith, in practice: jete never learns what an agent is; barre never reads jete's state. Each is
 usable on its own.
 
 mime will have a small MCP server in each µVM: the agent program sees mime as MCP tools ("send a
@@ -381,7 +338,7 @@ Sources: docs/architecture.md (The tools), crates/.
 
 Between the two: **vsock** (jete ↔ jete-agent, mime ↔ its MCP server) and a **tap** (the network, to barre).
 
-Each layer knows nothing about the ones above it.
+**Tools, not a monolith:** each layer knows nothing about the ones above it.
 
 </div>
 
@@ -400,7 +357,7 @@ Inside each µVM, its own little stack: a guest kernel, systemd, jete-agent so t
 things, and the agent program on top. Two channels cross the boundary: vsock, which needs no
 network, and the tap, which only ever reaches barre.
 
-Principle 2 in a picture: jete could run any workload, barre could front any client.
+Tools, not a monolith, in a picture: jete could run any workload, barre could front any client.
 
 Source: docs/architecture.md (The tools: "knows nothing about").
 -->

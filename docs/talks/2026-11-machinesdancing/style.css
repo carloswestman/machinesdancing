@@ -11,11 +11,6 @@ code, pre, .slidev-code {
   height: auto !important;
 }
 
-/* The principles slide: two compact tables without header rows. */
-.principles table { margin: 0; }
-.principles thead { display: none; }
-.principles td { padding: 0.2rem 0.4rem; line-height: 1.25; }
-
 /* Long output lines wrap instead of running off the slide. */
 .wrap-code pre, .wrap-code code {
   white-space: pre-wrap !important;
@@ -35,3 +30,9 @@ code, pre, .slidev-code {
 .stack .bx { text-align: center; margin-top: 0.3rem; }
 .bx-arrow { text-align: center; font-size: 0.7rem; color: #4b5563; line-height: 1.2; padding: 0.15rem 0; }
 .bx-prompt { font-family: ui-monospace, monospace; font-size: 0.68rem; background: #fff; border: 1px solid #fca5a5; border-radius: 4px; padding: 0.2rem 0.4rem; color: #7f1d1d; }
+
+/* A compact two-column table without a header row. */
+.tight table { margin: 0; }
+.tight thead { display: none; }
+.tight td { padding: 0.35rem 0.6rem; line-height: 1.3; }
+.tight td:first-child { white-space: nowrap; }
