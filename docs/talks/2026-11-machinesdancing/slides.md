@@ -41,7 +41,7 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 </div>
 <div class="agenda-part">
 <div class="agenda-title">2 · First tools and tests</div>
-<div>The lab · jete: µVM orchestration, demo · barre: network control, demos · Claude Code in a µVM</div>
+<div>The lab · jete: µVM orchestration, demo · barre: network control, demo · Claude Code in a µVM</div>
 </div>
 <div class="agenda-part">
 <div class="agenda-title">3 · Where it stands</div>
@@ -666,34 +666,13 @@ direct mode, jete's firewall drops it and the request times out (tested in net.r
 Then, live, the rules that made this happen (the backup slide has an excerpt):
   sudo nft list table inet jete
 
+Clean up: sudo barre-vm rm $id
+
+Cut for time: changing the policy live (barre allow, barre revoke). If asked, the answer is on the
+barre slide: policies apply within half a second, and revoke cuts the µVM off. The recorded run is
+in demos/2-egress-policy.txt, "demo 3" part.
+
 Fallback: demos/2-egress-policy.txt.
--->
-
----
-layout: center
----
-
-# Demo 3: change the rules, not the µVM
-
-```bash
-sudo jete exec $id -- curl -sS https://1.1.1.1              # refused
-addr=$(sudo barre ls | awk -v id=$id '$2==id{print $1}')
-sudo barre allow $addr --vm $id example.com github.com:22 1.1.1.1; sleep 1
-sudo jete exec $id -- curl -sI https://1.1.1.1 | head -1    # HTTP/2 301
-sudo barre revoke $addr; sleep 1
-sudo jete exec $id -- curl -sS https://example.com          # could not resolve
-sudo barre-vm rm $id
-```
-
-<!--
-The guest isn't touched and doesn't cooperate: the policy lives on the host. allow replaces the
-whole policy; barre applies it within half a second. Changed rules apply to new connections;
-revoking stops the µVM's listeners and closes its open connections.
-
-A policy records the interface its address was on, by name and index. When jete removes the µVM the
-interface goes, so a forgotten policy can never pass to the next µVM given the same address (tested).
-
-Fallback: demos/2-egress-policy.txt, "demo 3" part.
 -->
 
 ---
