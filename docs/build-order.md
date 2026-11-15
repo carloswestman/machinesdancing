@@ -30,10 +30,10 @@ of [architecture.md](architecture.md#where-things-are-stored), and it lives outs
 holds the tools, generic, with no team's setup in it (principle 4).
 
 - **Today:** one instance, whose only repo is machinesdancing.
-- **Later:** an instance for other work, with its own repos, its own GitHub identity and its own
-  credentials. Nothing in the tools changes; the instance does. Before that: the work's owner
-  agrees, the subscription's terms allow it (architecture's open question 2), and G2 keeps the
-  secrets out of the µVM.
+- **Later:** an instance for the human's company, with its own repos, its own GitHub identity and
+  its own credentials. Nothing in the tools changes; the instance does. The company has agreed.
+  Before that instance: the model access is one the company's use allows (architecture's open
+  question 2), and G2 keeps the secrets out of the µVM.
 
 The instance config's format starts as small as step 4 needs and grows with each step: roles and
 channels with mime, rules with regisseur.
