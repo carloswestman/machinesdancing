@@ -240,6 +240,7 @@ architecture's credentials).
 
 - **Disclosure:** the code is AI-generated, by Claude Code. I've studied it, reviewed it, and tested it on real Firecracker microVMs (µVMs).
 - **The architecture is mine:** the principles, the design, and every decision about what gets built and how.
+- **Open source:** the project becomes an open-source project, for running AI agents on-prem, fast and secure, on hardware you own.
 
 <!--
 The disclosure: say it plainly, no apology, then move on. It sets the frame for questions: you can explain why
@@ -248,6 +249,10 @@ everything is the way it is; for a line-by-line detail, "I'd rather check the co
 If asked "did AI write all of this?": "The code, yes. The architecture and the decisions are mine, and
 I've reviewed and tested what's there. There are details I'm still learning, which is part of why I'm
 showing it here."
+
+Open source: this is the bridge to the room. It's built on Linux and open tools (KVM, Firecracker,
+nftables, systemd), and it goes back out as open source. Running agents on your own hardware, with
+rules you can read, is a very Linux-users-group idea. The repo link is on the last slide.
 -->
 
 ---

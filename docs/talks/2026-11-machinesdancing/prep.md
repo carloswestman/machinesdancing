@@ -133,3 +133,5 @@ Notes:
 4. **Check slide 19's numbers** if more code lands: test counts, status labels.
 5. **Export the PDF** and keep it with the transcripts, offline.
 6. **Make the repository public**: the last slide links to it.
+7. **Add a license** (MIT, Apache-2.0, GPL…): "How I work" says the project is open source, and
+   without a license a public repo isn't.
