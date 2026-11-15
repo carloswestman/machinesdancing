@@ -75,74 +75,103 @@ agent can run with fewer prompts and do more, safely.
 
 # How agents run today, and how they should
 
-<div class="grid grid-cols-2 gap-8 pt-2 text-sm">
+<div class="grid grid-cols-[2fr_3fr] gap-6 text-sm">
 <div>
 
 **Today:** on your machine, as you
 
 <div class="bx bx-host">
-<div class="bx-label">Your laptop: one user, one kernel, tmux panes</div>
-<div class="bx bx-risk mx-auto text-center" style="width:55%">Claude Code</div>
-<div class="pt-3 text-center">
+<div class="bx-label">Your laptop: one user, one kernel</div>
+<div class="bx bx-risk mx-auto text-center" style="width:70%">Claude Code</div>
+<div class="bx-prompt mt-2">CLAUDE.md: never push to main · update the ticket · don't touch prod · ask first</div>
+<div class="pt-2 text-center">
 <span class="chip bx-risk">~/.ssh</span>
 <span class="chip bx-risk">git credentials</span>
-<span class="chip bx-risk">cloud and API keys</span>
+<span class="chip bx-risk">API keys</span>
 <span class="chip bx-risk">all your files</span>
 <span class="chip bx-risk">the LAN</span>
 <span class="chip bx-risk">production</span>
 <span class="chip bx-risk">any site</span>
-<span class="chip bx-risk">other agents' work</span>
 </div>
 </div>
 
-<div class="pt-3">
-
-The limits: instructions and permission prompts, **inside the agent**.
-
-</div>
 </div>
 <div>
 
-**How they should:** in a µVM
+**How they should:** the rules held by the host
 
-<div class="bx bx-host">
-<div class="bx-label">Host: KVM, nftables, the policy</div>
-<div class="bx bx-built mx-auto text-center" style="width:55%">µVM: Claude Code<br/><span class="text-xs">no keys</span></div>
-<div class="bx-row text-xs">
-<div class="bx bx-built">network: allowed names only</div>
-<div class="bx bx-planned">credentials added on the way out</div>
-<div class="bx bx-planned">messages over declared channels</div>
+<div class="bx bx-host text-xs">
+<div class="bx-label">Host: trusted. Every way out of a µVM ends at a host tool that checks it</div>
+<div class="bx bx-built" style="padding:0.4rem">
+<div class="bx-label" style="padding-bottom:0.2rem">µVM: its own kernel. Nothing inside is trusted</div>
+<div class="bx text-center text-sm">Claude Code <span class="text-xs opacity-70">· judgment: plans, codes, reviews</span></div>
+<div class="bx-row">
+<div class="bx bx-planned">repo clone</div>
+<div class="bx bx-planned">skills, read-only</div>
+<div class="bx bx-planned">holds no keys</div>
+<div class="bx bx-planned">mime MCP</div>
+<div class="bx bx-built">jete-agent</div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-x-2">
+<div class="bx-arrow">↓ network, all of it</div>
+<div class="bx-arrow">↓ vsock: identity from the connection</div>
+<div class="bx-arrow">↑ vsock: the only way in, host only</div>
+<div class="bx bx-built text-center"><b>barre</b><br/>allowed names only, logged<div class="bx bx-planned mt-1">adds credentials</div></div>
+<div class="bx bx-planned text-center"><b>mime</b><br/>declared channels, typed messages, checked, recorded</div>
+<div class="bx bx-built text-center"><b>jete</b><br/>boots, runs, destroys</div>
+<div class="bx-arrow">↓ model API, product repos</div>
+<div class="bx-arrow">↕ events, actions</div>
+<div class="bx-arrow">↑ spawn, destroy</div>
+</div>
+<div class="bx bx-planned text-center"><b>regisseur</b>: workflows do the bookkeeping (branches, tickets, PRs); connectors hold GitHub and Jira; a human approves every merge</div>
+</div>
+
 </div>
 </div>
 
-<div class="pt-3">
+<div class="grid grid-cols-[2fr_3fr] gap-6 pt-3 text-base">
+<div>
 
-The limits: enforced by the host, **outside the agent**.
+**The LLM codes; we prompt for compliance.**
+
+</div>
+<div>
+
+**The LLM codes; the system enforces the rules.**
 
 </div>
 </div>
-</div>
 
-<div class="text-xs opacity-70 pt-3">Green: built. Grey, dashed: designed, not built.</div>
+<div class="text-xs opacity-70 pt-1">Green: built. Grey, dashed: designed, not built.</div>
 
 <!--
 Left is how most of us run agents today, me included until this project: Claude Code in tmux panes,
 as my own user, on my own machine. Everything I can reach, it can reach: my SSH keys, git
-credentials, cloud keys, every file, the LAN, the internet. And the agents share one filesystem, so
-they can step on each other's work. The only limits are what I told it and the prompts I click
-through.
+credentials, API keys, every file, the LAN, production. The rules are a CLAUDE.md and the
+permission prompts I click through. The LLM writes the code, and we prompt it to comply.
 
-Right is what this project builds: each agent in its own µVM, holding no keys. It has exactly two
-ways out, both on the host: the network, through barre (built), and messages, through mime (not
-built). Credentials get added by barre on the way out (phase 2, not built), so a compromised agent
-has nothing to steal.
+Right is the design (docs/architecture.md), read top down:
+- The agent gets its own µVM: its own kernel, a clone of the repo it works on, its skills on a
+  read-only disk, and no keys. Nothing inside the µVM is trusted, the agent included.
+- Exactly two ways out, both ending at a host tool that checks them. The network: all of it goes to
+  barre, which allows names, logs everything, and (phase 2) adds the credentials on the way out, so
+  the agent never holds them. And vsock to mime, the message bus: only declared channels, typed
+  messages, each one checked and recorded. The sender's identity comes from which µVM the vsock
+  connection is from, never from what the agent says.
+- One way in: jete's vsock channel to jete-agent, usable only by the host.
+- regisseur, the control plane, does everything that's the same every time: update branches, move
+  tickets, open the PR. Its connectors hold the GitHub and Jira credentials. Merges need a human,
+  per merge.
 
-The point to land: the limits move from inside the agent, where it can be talked out of them, to
-outside, where it can't touch them.
+The point to land: the LLM still does the creative work. What changes is who holds the rules:
+not a prompt the agent can misread or be talked out of, but the host.
+
+Honest status: green is built (the µVM, barre by name, jete). Today the Claude Code token is still
+inside the µVM: "holds no keys" is the design, waiting on barre's phase 2.
 
 If asked "doesn't Claude Code have a sandbox?": it does, and devcontainers exist. They help. This is
-the same idea pushed further: a separate kernel per agent, and a policy the agent's own host
-can't edit.
+the same idea pushed further: a separate kernel per agent, and a policy the agent can't edit.
 -->
 
 ---

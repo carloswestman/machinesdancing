@@ -33,3 +33,5 @@ code, pre, .slidev-code {
 .bx-row > .bx { flex: 1; text-align: center; }
 .chip { display: inline-block; border-radius: 999px; padding: 0.05rem 0.55rem; margin: 0.15rem 0.1rem; font-size: 0.75rem; }
 .stack .bx { text-align: center; margin-top: 0.3rem; }
+.bx-arrow { text-align: center; font-size: 0.7rem; color: #4b5563; line-height: 1.2; padding: 0.15rem 0; }
+.bx-prompt { font-family: ui-monospace, monospace; font-size: 0.68rem; background: #fff; border: 1px solid #fca5a5; border-radius: 4px; padding: 0.2rem 0.4rem; color: #7f1d1d; }
