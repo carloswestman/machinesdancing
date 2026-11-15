@@ -87,7 +87,7 @@ the motivation.
 
 <div class="pt-8 text-xl text-center">
 
-**The LLM codes; we prompt for compliance.**
+**The LLM codes, we prompt for compliance,<br/>and they own our identity and personal information!**
 
 </div>
 
