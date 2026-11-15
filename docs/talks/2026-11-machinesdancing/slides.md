@@ -152,7 +152,8 @@ The design (docs/architecture.md), read top down. Here it's what the system does
 names come later (network control is barre, the chat room is mime, the lifecycle is jete, action and
 event requests are regisseur):
 - The agent gets its own µVM: its own kernel, git for the repo it works on (it can push a branch,
-  but merging to main is the human's), its skills on a read-only disk, and the minimum keys: ideally
+  but merging to main is the human's: GitHub enforces it, with a ruleset on main and the human as
+  the only code owner, and the agent's GitHub App has no permission to touch CI workflows), its skills on a read-only disk, and the minimum keys: ideally
   none, at most the narrowest one its agent program insists on. It talks to other agents only
   through an MCP tool. A guest agent lets the host run commands inside. Nothing inside the µVM is
   trusted, the agent included.
@@ -261,6 +262,11 @@ showing it here."
 Open source: this is the bridge to the room. It's built on Linux and open tools (KVM, Firecracker,
 nftables, systemd), and it goes back out as open source. Running agents on your own hardware, with
 rules you can read, is a very Linux-users-group idea. The repo link is on the last slide.
+
+If asked how a business would work on top: the tools are generic and open source; a team's setup
+(its repos, roles, what each may reach, which credentials by name) is an "instance", kept in its own
+private repo, never in this one (docs/design/instances.md). Open tools, private configuration, and
+services around them.
 -->
 
 ---
@@ -722,7 +728,7 @@ Sources: images/rootfs/build, scripts/claude-vm, docs/guides/claude-code.md.
 
 # What works today
 
-<div class="text-sm">
+<div class="text-sm compact">
 
 | Capability | Status | Evidence |
 |---|---|---|
@@ -731,7 +737,8 @@ Sources: images/rootfs/build, scripts/claude-vm, docs/guides/claude-code.md.
 | Host, LAN, tailnet, other µVMs unreachable | Implemented, tested | jete `tests/net.rs` (6) |
 | DNS and egress by name, logged | Implemented, tested | barre `tests/vm.rs` (2), 21 unit tests |
 | IPv6, ICMP, spoofed sources dropped | Implemented, **not tested** | nftables rules in `net.rs` |
-| Claude Code in a µVM, behind barre | Implemented, tested by hand | `scripts/claude-vm`; reaches only `api.anthropic.com` |
+| Claude Code in a µVM, behind barre | Tested by hand | `scripts/claude-vm` |
+| Repo access, as a GitHub App | **Designed** | `repo-access.md` |
 | Credentials kept out of µVMs | **Planned** | barre phase 2 |
 | Daemon, snapshots; mime; regisseur | **Planned** | jete M3, M4; not designed |
 
@@ -844,18 +851,39 @@ that runs commands in the µVM.
 
 # Next, and questions for you
 
-**Next**
-- A real task, end to end: Claude Code in a µVM, a git repo, a pull request
-- Credentials added by barre, so µVMs hold none
-- jete: a daemon with an API; snapshots and a warm pool for instant µVMs
-- mime, the agent message bus, and regisseur, the control plane: the "team" part
+<div class="grid grid-cols-2 gap-10 pt-2">
+<div>
+
+**Next**, in build order
+- **Repo access**: git and `gh` as a GitHub App, a real pull request
+- **Credentials added by barre**: µVMs hold no secret at all
+- **mime and regisseur**: the "team" part
+- Speed when needed: snapshots, a warm pool
+
+</div>
+<div>
 
 **I'd value your take on**
 - Would you trust a transparent proxy, or rather an explicit one?
 - Domain fronting: decrypt, or live with it?
 - What would you test to try to get out of one of these µVMs?
 
+</div>
+</div>
+
+<div class="pt-8 text-xl text-center">
+
+machinesdancing will be built **with** machinesdancing.
+
+</div>
+
 <!--
+The build order is docs/build-order.md. Steps 3 and 4 finish together: a ticket written as for a
+person ends in a pull request the human reviews and merges. The first real tickets are on this repo
+itself: safe because nothing the agent writes takes effect before the human acts (it can't merge,
+hemlock changes only through Ansible, no CI runs its code with secrets), and they start with docs,
+scripts and tests, not barre's policy code.
+
 Pick two of the three questions, depending on time. End on the question; don't summarize.
 
 Repository: github.com/carloswestman/machinesdancing (on the last slide).

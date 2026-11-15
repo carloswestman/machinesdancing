@@ -121,6 +121,16 @@ Notes:
     its own user; barre's service as `barre`, without capabilities.
 12. **How did you use AI, and how do you check it?** See slide 6, "How I work". Tests boot real VMs; every
     status claim points at one.
+13. **How will agents use git?** Like a developer: plain `git` and `gh`, as a GitHub App per role.
+    The host mints a token that lasts an hour, limited to the task's repo, and writes it to a
+    memory-only file in the µVM; it refreshes it every 50 minutes. Later, barre adds it on the way
+    out and the µVM holds none. Designed, not built (`docs/design/repo-access.md`).
+14. **Can an agent merge, or change CI?** No. A ruleset on `main` needs the human's approval as
+    the only code owner; the App has no `workflows` permission, so GitHub refuses pushes under
+    `.github/workflows/`. The guardrail is git's own: the merge.
+15. **Why not Temporal for the workflows?** An open question (`docs/architecture.md`). It gives
+    durable, long-running workflows; against it, rules here are configuration, not code, and it's
+    a server and a database on hemlock. To try when regisseur is built.
 
 ## Before presenting
 

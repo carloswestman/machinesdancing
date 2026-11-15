@@ -40,3 +40,7 @@ code, pre, .slidev-code {
 /* The agenda: one block per part of the talk. */
 .agenda-part { border-left: 4px solid #059669; padding: 0.5rem 0 0.5rem 1rem; margin-bottom: 1.6rem; font-size: 1.1rem; }
 .agenda-title { font-weight: 700; font-size: 1.5rem; padding-bottom: 0.3rem; }
+
+/* A compact table that keeps its header row. */
+.compact table { margin: 0; }
+.compact td, .compact th { padding: 0.35rem 0.6rem; line-height: 1.3; }
