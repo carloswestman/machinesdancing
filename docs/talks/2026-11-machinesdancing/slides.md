@@ -882,11 +882,15 @@ machinesdancing will be built **by** machinesdancing.
 
 </div>
 
-1. **Repo access:** git and `gh` through a GitHub App, credentials per role
-2. **Credentials injected by barre:** µVMs hold no secret at all
-3. **mime and regisseur:** the "team" part
+1. **The first instance:** a private configuration repo for the team that works on this repo
+2. **Repo access:** git and `gh` through a GitHub App, credentials per role
+3. **Credentials injected by barre:** µVMs hold no secret at all
+4. **mime and regisseur:** the "team" part
 
 <!--
+Say: "An instance is a team's setup: its repos, its roles, what each may reach. It lives in its own
+private repo; the tools stay generic."
+
 The build order is docs/build-order.md. Steps 3 and 4 finish together: a ticket written as for a
 person ends in a pull request the human reviews and merges. The first real tickets are on this repo
 itself: safe because nothing the agent writes takes effect before the human acts (it can't merge,
