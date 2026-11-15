@@ -58,19 +58,26 @@ branch has commits from another ticket.
 
 1. The host reads the instance: the role, its App, its barre rules, the repo.
 2. It starts the µVM with the role's barre rules.
-3. It mints an installation token for the role's App, narrowed to the task's repo, valid for an
-   hour, from the App's private key in `/etc/machinesdancing/credentials/` (the key never leaves the
-   host).
-4. It starts the agent with the token on stdin, as `claude-vm` does the Claude token: never on a
-   command line or a disk. The agent's environment gets it as `GH_TOKEN`, which `gh` reads, and git
-   uses it through a credential helper in the guest image that reads the same variable.
+3. It mints an installation token for the role's App, narrowed to the task's repo, from the App's
+   private key in `/etc/machinesdancing/credentials/` (the key never leaves the host).
+4. It writes the token into the µVM through jete-agent, over stdin, to a file on a memory-only
+   filesystem (`/run`) that only the agent's user can read: never on a command line or a disk. git
+   reads it through a credential helper in the guest image, and `gh` through a small wrapper that
+   sets `GH_TOKEN` from it on each call.
 5. The agent clones, branches, commits, pushes and opens its pull request.
 
-From G2 the µVM holds no token: barre adds it to requests to `github.com` and `api.github.com`.
+GitHub fixes an installation token's life at one hour, and it can't be extended; a new one can be
+minted at any time. So, for a task longer than that, the host writes a fresh token into the same
+file every 50 minutes, the same way. A file and not an environment variable, because a running
+process can't be given a new environment.
+
+From G2 the µVM holds no token: barre mints fresh ones as they expire and adds them to requests to
+`github.com` and `api.github.com`, and the hour no longer concerns the agent.
 
 ## Known limits
 
-- **Until G2, the µVM holds a token.** It's narrowed to one repo and expires within an hour.
+- **Until G2, the µVM holds a token.** It's narrowed to one repo and expires within an hour; a
+  leaked one is soon useless. The host keeps the µVM's copy fresh.
 - **Agents in one role share an identity.** GitHub can't tell whether worker A pushed to ticket B's
   branch; only the commit author says so, and the agent can change it. Review covers this for now.
 
