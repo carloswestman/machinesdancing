@@ -17,7 +17,7 @@ npm run export     # slides.pdf, a fallback copy (needs playwright-chromium, ins
 ## Still to fill in
 
 - The AI disclosure in your own words (slide 6, "How I work").
-- Whether to show Claude Code live (slide 18). It works; keep the token file off screen.
+- Whether to show Claude Code live (slide 19). It works; keep the token file off screen.
 
 ## Fact sheet
 
@@ -126,11 +126,11 @@ Notes:
 
 ## Before presenting
 
-1. **Decide on the Claude Code demo** (slide 18). If you show it, rehearse it like the others.
+1. **Decide on the Claude Code demo** (slide 19). If you show it, rehearse it like the others.
 2. **Rehearse demos 1 to 3 twice** from a clean state, on the network you'll have there.
 3. **Decide on the half-second gap**: keep the `sleep 1`, or make `barre allow` wait until barre
    is listening.
-4. **Check slide 19's numbers** if more code lands: test counts, status labels.
+4. **Check slide 20's numbers** if more code lands: test counts, status labels.
 5. **Export the PDF** and keep it with the transcripts, offline.
 6. **Make the repository public**: the last slide links to it.
 7. **The license is Apache 2.0** (PR #22). If asked why: permissive, so forks and company use

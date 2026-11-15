@@ -34,22 +34,38 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 
 # Agenda
 
-<div class="text-lg pt-4">
+<div class="grid grid-cols-2 gap-10 pt-4 text-lg">
+<div>
+
+**The idea: an architecture**
 
 1. **Motivation**: how agents run today, and how they should
 2. **The design**: principles and the stack
+
+</div>
+<div>
+
+**First tools and tests**
+
 3. **The lab**: one mini PC
 4. **jete**: a µVM in 1.7 seconds, demo
 5. **barre**: the network, by name, demos
 6. **An agent inside**: Claude Code in a µVM
+
+</div>
+</div>
+
+<div class="pt-8 text-lg">
+
 7. **Where it stands**: what works, the limits, what's next
 8. **Questions for you**
 
 </div>
 
 <!--
-Thirty seconds: say where we're going, and that there are demos in the middle. Then straight into
-the motivation.
+Thirty seconds. Set the frame: this talk is about an idea, an architecture for running AI agents,
+and the first tools built to test it. Not a finished product. There are demos in the middle. Then
+straight into the motivation.
 -->
 
 ---
@@ -370,6 +386,19 @@ network, and the tap, which only ever reaches barre.
 Tools, not a monolith, in a picture: jete could run any workload, barre could front any client.
 
 Source: docs/architecture.md (The tools: "knows nothing about").
+-->
+
+---
+layout: section
+---
+
+# First tools and tests
+
+jete, barre, and an agent inside: built and tested on real µVMs
+
+<!--
+The switch from the idea to what exists. Everything from here to the status slide is built and
+runs on hemlock; the demos are live.
 -->
 
 ---
