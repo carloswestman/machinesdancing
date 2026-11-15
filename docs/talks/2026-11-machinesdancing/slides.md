@@ -109,22 +109,22 @@ agent can run with fewer prompts and do more, safely.
 <div class="bx bx-planned">repo clone</div>
 <div class="bx bx-planned">skills, read-only</div>
 <div class="bx bx-planned">holds no keys</div>
-<div class="bx bx-planned">mime MCP</div>
-<div class="bx bx-built">jete-agent</div>
+<div class="bx bx-planned">chat client (MCP)</div>
+<div class="bx bx-built">guest agent</div>
 </div>
 </div>
 <div class="grid grid-cols-3 gap-x-2">
 <div class="bx-arrow">↓ network, all of it</div>
 <div class="bx-arrow">↓ vsock: identity from the connection</div>
 <div class="bx-arrow">↑ vsock: the only way in, host only</div>
-<div class="bx bx-built text-center"><b>barre</b><br/>allowed names only, logged<div class="bx bx-planned mt-1">adds credentials</div></div>
-<div class="bx bx-planned text-center"><b>mime</b><br/>declared channels, typed messages, checked, recorded</div>
-<div class="bx bx-built text-center"><b>jete</b><br/>boots, runs, destroys</div>
+<div class="bx bx-built text-center"><b>Network control</b><br/>allowed names only, logged<div class="bx bx-planned mt-1">key injection</div></div>
+<div class="bx bx-planned text-center"><b>Controlled chat room</b><br/>declared channels, typed messages, checked, recorded</div>
+<div class="bx bx-built text-center"><b>µVM lifecycle</b><br/>a CLI: boot, run commands, destroy</div>
 <div class="bx-arrow">↓ model API, product repos</div>
-<div class="bx-arrow">↕ events, actions</div>
+<div class="bx-arrow">↕ requests, events</div>
 <div class="bx-arrow">↑ spawn, destroy</div>
 </div>
-<div class="bx bx-planned text-center"><b>regisseur</b>: workflows do the bookkeeping (branches, tickets, PRs); connectors hold GitHub and Jira; a human approves every merge</div>
+<div class="bx bx-planned text-center"><b>Action and event requests</b>: workflows do the bookkeeping (branches, tickets, PRs); connectors hold GitHub and Jira; a human approves every merge</div>
 </div>
 
 </div>
@@ -151,24 +151,26 @@ as my own user, on my own machine. Everything I can reach, it can reach: my SSH 
 credentials, API keys, every file, the LAN, production. The rules are a CLAUDE.md and the
 permission prompts I click through. The LLM writes the code, and we prompt it to comply.
 
-Right is the design (docs/architecture.md), read top down:
+Right is the design (docs/architecture.md), read top down. Here it's what the system does; the
+names come later (network control is barre, the chat room is mime, the lifecycle is jete, action and
+event requests are regisseur):
 - The agent gets its own µVM: its own kernel, a clone of the repo it works on, its skills on a
   read-only disk, and no keys. Nothing inside the µVM is trusted, the agent included.
-- Exactly two ways out, both ending at a host tool that checks them. The network: all of it goes to
-  barre, which allows names, logs everything, and (phase 2) adds the credentials on the way out, so
-  the agent never holds them. And vsock to mime, the message bus: only declared channels, typed
-  messages, each one checked and recorded. The sender's identity comes from which µVM the vsock
-  connection is from, never from what the agent says.
-- One way in: jete's vsock channel to jete-agent, usable only by the host.
-- regisseur, the control plane, does everything that's the same every time: update branches, move
-  tickets, open the PR. Its connectors hold the GitHub and Jira credentials. Merges need a human,
-  per merge.
+- Exactly two ways out, both ending at something on the host that checks them. The network: all of
+  it goes through network control, which allows names, logs everything, and (later) injects the
+  keys on the way out, so the agent never holds them. And vsock to the controlled chat room: only
+  declared channels, typed messages, each one checked and recorded. The sender's identity comes
+  from which µVM the vsock connection is from, never from what the agent says.
+- One way in: the lifecycle's vsock channel to the guest agent, usable only by the host.
+- Action and event requests: everything that's the same every time is done by the system (update
+  branches, move tickets, open the PR). Its connectors hold the GitHub and Jira credentials. Merges
+  need a human, per merge.
 
 The point to land: the LLM still does the creative work. What changes is who holds the rules:
 not a prompt the agent can misread or be talked out of, but the host.
 
-Honest status: green is built (the µVM, barre by name, jete). Today the Claude Code token is still
-inside the µVM: "holds no keys" is the design, waiting on barre's phase 2.
+Honest status: green is built (the µVM, the lifecycle, network control by name). Today the Claude
+Code token is still inside the µVM: "holds no keys" is the design, waiting on key injection.
 
 If asked "doesn't Claude Code have a sandbox?": it does, and devcontainers exist. They help. This is
 the same idea pushed further: a separate kernel per agent, and a policy the agent can't edit.
