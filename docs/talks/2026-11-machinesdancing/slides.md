@@ -55,7 +55,7 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 </div>
 <div class="agenda-part">
 <div class="agenda-title">3 · Where it stands</div>
-<div>What works · The limits · What's next · Questions for you</div>
+<div>What works · The limits · What's next</div>
 </div>
 </div>
 
@@ -874,33 +874,17 @@ that runs commands in the µVM.
 
 ---
 
-# Next, and questions for you
+# What's next
 
-<div class="grid grid-cols-2 gap-10 pt-2">
-<div>
+<div class="text-2xl pt-4 pb-8">
 
-**Next**, in build order
-- **Repo access**: git and `gh` as a GitHub App, a real pull request
-- **Credentials added by barre**: µVMs hold no secret at all
-- **mime and regisseur**: the "team" part
-- Speed when needed: snapshots, a warm pool
+machinesdancing will be built **by** machinesdancing.
 
 </div>
-<div>
 
-**I'd value your take on**
-- Would you trust a transparent proxy, or rather an explicit one?
-- Domain fronting: decrypt, or live with it?
-- What would you test to try to get out of one of these µVMs?
-
-</div>
-</div>
-
-<div class="pt-8 text-xl text-center">
-
-machinesdancing will be built **with** machinesdancing.
-
-</div>
+1. **Repo access:** git and `gh` through a GitHub App, credentials per role
+2. **Credentials injected by barre:** µVMs hold no secret at all
+3. **mime and regisseur:** the "team" part
 
 <!--
 The build order is docs/build-order.md. Steps 3 and 4 finish together: a ticket written as for a
@@ -909,7 +893,7 @@ itself: safe because nothing the agent writes takes effect before the human acts
 hemlock changes only through Ansible, no CI runs its code with secrets), and they start with docs,
 scripts and tests, not barre's policy code.
 
-Pick two of the three questions, depending on time. End on the question; don't summarize.
+Then open the floor for questions.
 
 Repository: github.com/carloswestman/machinesdancing (on the last slide).
 -->
