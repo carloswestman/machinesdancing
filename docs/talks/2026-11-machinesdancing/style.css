@@ -21,3 +21,15 @@ code, pre, .slidev-code {
   white-space: pre-wrap !important;
   word-break: break-word;
 }
+
+/* Boxes for the "today vs. should" and stack slides. */
+.bx { border: 1px solid #9ca3af; border-radius: 6px; padding: 0.3rem 0.6rem; background: #fff; }
+.bx-host { background: #f9fafb; padding: 0.6rem; }
+.bx-label { font-size: 0.75rem; opacity: 0.7; padding-bottom: 0.4rem; }
+.bx-risk { background: #fee2e2; border-color: #dc2626; color: #7f1d1d; }
+.bx-built { background: #d1fae5; border-color: #059669; color: #064e3b; }
+.bx-planned { background: #f3f4f6; border-color: #9ca3af; border-style: dashed; color: #6b7280; }
+.bx-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem; }
+.bx-row > .bx { flex: 1; text-align: center; }
+.chip { display: inline-block; border-radius: 999px; padding: 0.05rem 0.55rem; margin: 0.15rem 0.1rem; font-size: 0.75rem; }
+.stack .bx { text-align: center; margin-top: 0.3rem; }

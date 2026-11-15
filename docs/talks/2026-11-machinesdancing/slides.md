@@ -73,6 +73,88 @@ agent can run with fewer prompts and do more, safely.
 
 ---
 
+# How agents run today, and how they should
+
+<div class="grid grid-cols-2 gap-8 pt-2 text-sm">
+<div>
+
+**Today:** on your machine, as you
+
+<div class="bx bx-host">
+<div class="bx-label">Your laptop: one user, one kernel, tmux panes</div>
+<div class="bx-row">
+<div class="bx bx-risk">Claude Code</div>
+<div class="bx bx-risk">Claude Code</div>
+<div class="bx bx-risk">Claude Code</div>
+</div>
+<div class="pt-3 text-center">
+<span class="chip bx-risk">~/.ssh</span>
+<span class="chip bx-risk">git credentials</span>
+<span class="chip bx-risk">cloud and API keys</span>
+<span class="chip bx-risk">all your files</span>
+<span class="chip bx-risk">the LAN</span>
+<span class="chip bx-risk">production</span>
+<span class="chip bx-risk">any site</span>
+<span class="chip bx-risk">each other's work</span>
+</div>
+</div>
+
+<div class="pt-3">
+
+The limits: instructions and permission prompts, **inside the agent**.
+
+</div>
+</div>
+<div>
+
+**How they should:** a µVM each
+
+<div class="bx bx-host">
+<div class="bx-label">Host: KVM, nftables, the policy</div>
+<div class="bx-row">
+<div class="bx bx-built">µVM<br/>Claude Code<br/><span class="text-xs">no keys</span></div>
+<div class="bx bx-built">µVM<br/>Claude Code<br/><span class="text-xs">no keys</span></div>
+<div class="bx bx-built">µVM<br/>Claude Code<br/><span class="text-xs">no keys</span></div>
+</div>
+<div class="bx-row text-xs">
+<div class="bx bx-built">network: allowed names only</div>
+<div class="bx bx-planned">credentials added on the way out</div>
+<div class="bx bx-planned">messages over declared channels</div>
+</div>
+</div>
+
+<div class="pt-3">
+
+The limits: enforced by the host, **outside the agent**.
+
+</div>
+</div>
+</div>
+
+<div class="text-xs opacity-70 pt-3">Green: built. Grey, dashed: designed, not built.</div>
+
+<!--
+Left is how most of us run agents today, me included until this project: Claude Code in tmux panes,
+as my own user, on my own machine. Everything I can reach, it can reach: my SSH keys, git
+credentials, cloud keys, every file, the LAN, the internet. And the agents share one filesystem, so
+they can step on each other's work. The only limits are what I told it and the prompts I click
+through.
+
+Right is what this project builds: each agent in its own µVM, holding no keys. It has exactly two
+ways out, both on the host: the network, through barre (built), and messages, through mime (not
+built). Credentials get added by barre on the way out (phase 2, not built), so a compromised agent
+has nothing to steal.
+
+The point to land: the limits move from inside the agent, where it can be talked out of them, to
+outside, where it can't touch them.
+
+If asked "doesn't Claude Code have a sandbox?": it does, and devcontainers exist. They help. This is
+the same idea pushed further: a separate kernel per agent, and a policy the agent's own host
+can't edit.
+-->
+
+---
+
 # The solution
 
 <div class="grid grid-cols-2 gap-8 pt-2">
@@ -211,6 +293,64 @@ vocabulary of gestures dancers use to talk to each other on stage; the régisseu
 performances and calls the cues.
 
 Sources: docs/architecture.md (The tools), crates/.
+-->
+
+---
+
+# The stack
+
+<div class="grid grid-cols-[3fr_2fr] gap-8 text-sm stack">
+<div>
+
+**On the host**
+
+<div class="bx bx-planned">regisseur: control plane. Roles, tickets, workflows; spawns agents</div>
+<div class="bx-row">
+<div class="bx bx-built">jete<br/><span class="text-xs">µVM manager</span></div>
+<div class="bx bx-built">barre<br/><span class="text-xs">egress gateway</span></div>
+<div class="bx bx-planned">mime<br/><span class="text-xs">message bus</span></div>
+</div>
+<div class="bx">Firecracker and jailer · nftables · systemd</div>
+<div class="bx">Linux 7.0 and KVM · Ubuntu Server 26.04</div>
+<div class="bx">hemlock: i5-10500T, 16 GB</div>
+
+</div>
+<div>
+
+**Inside each µVM**
+
+<div class="bx">Claude Code, the agent program</div>
+<div class="bx bx-planned">mime MCP server</div>
+<div class="bx bx-built">jete-agent</div>
+<div class="bx">Ubuntu 26.04 · systemd · Linux 6.18</div>
+<div class="bx">Firecracker's virtual machine</div>
+
+</div>
+</div>
+
+<div class="text-sm pt-4">
+
+Between the two: **vsock** (jete ↔ jete-agent, mime ↔ its MCP server) and a **tap** (the network, to barre).
+
+Each layer knows nothing about the ones above it.
+
+</div>
+
+<div class="text-xs opacity-70 pt-2">Green: ours, built. Grey, dashed: ours, not built. White: other people's.</div>
+
+<!--
+Read it bottom up. Hardware, Linux with KVM, then the pieces I didn't write: Firecracker and its
+jailer, nftables, systemd. On those, three tools of mine side by side, none of which knows about the
+others: jete runs µVMs, barre decides what their network may reach, mime will carry their messages.
+On top, regisseur composes the three; it's the only one that knows what an "agent" or a "ticket" is.
+
+Inside each µVM, its own little stack: a guest kernel, systemd, jete-agent so the host can run
+things, and the agent program on top. Two channels cross the boundary: vsock, which needs no
+network, and the tap, which only ever reaches barre.
+
+Principle 2 in a picture: jete could run any workload, barre could front any client.
+
+Source: docs/architecture.md (The tools: "knows nothing about").
 -->
 
 ---
