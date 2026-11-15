@@ -281,30 +281,41 @@ services around them.
 
 ---
 
-# The pieces
+# The cast
 
-<div class="text-sm opacity-80 pb-1">Small tools, each with one job, each knowing nothing about the layers above.</div>
+<div class="opacity-80 pb-5">Small tools, each with one job, named from ballet.</div>
 
-<div class="text-sm">
+<div class="cast">
 
-| Component | What it is | Description |
-|---|---|---|
-| **jete** | µVM manager | Boots jailed Firecracker µVMs in about 1.7 s, runs commands in them over vsock, gives each a network link or none. *Built.* |
-| **jete-agent** | Guest agent | Inside every µVM: says it's ready, runs processes for the host, streams their input and output. *Built.* |
-| **barre** | Egress gateway | Every connection a µVM makes goes through it: allowed by name and port, or refused, and logged. *Built (phase 1).* |
-| **mime** | Agent message bus | Messages between agents, over declared channels only, checked and recorded. *Not designed.* |
-| **regisseur** | Control plane | Roles, tickets, workflows; spawns and destroys agents through jete. *Not designed.* |
+<div class="cast-icon"><svg viewBox="0 0 24 24"><path d="M2.5 20 Q12 -5 21.5 20" stroke-dasharray="2.2 2.4"/><circle cx="12" cy="7.5" r="2.6" fill="currentColor" stroke="none"/><path d="M1.5 21.5 H22.5"/></svg></div>
+<div><div class="cast-name">jete</div><div class="cast-meaning">jeté: a leap</div></div>
+<div>Boots jailed Firecracker µVMs, runs commands, destroys them</div>
+<div class="cast-status cast-built">built</div>
 
-</div>
+<div class="cast-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 10 L10 12.5 L7 15"/><path d="M12.5 15.5 H17"/></svg></div>
+<div><div class="cast-name">jete-agent</div><div class="cast-meaning">jete's partner, inside each µVM</div></div>
+<div>Says the µVM is ready; runs commands for the host, over vsock</div>
+<div class="cast-status cast-built">built</div>
 
-<div class="text-sm opacity-80 pt-2">
+<div class="cast-icon"><svg viewBox="0 0 24 24"><path d="M2.5 8.5 H21.5" stroke-width="2.6"/><path d="M6 8.5 V20 M18 8.5 V20"/><path d="M4 20 H8 M16 20 H20"/></svg></div>
+<div><div class="cast-name">barre</div><div class="cast-meaning">the rail dancers hold</div></div>
+<div>Every connection out: allowed by name, or refused; logged</div>
+<div class="cast-status cast-built">built</div>
 
-**Built on:** Firecracker and its jailer · KVM · nftables · systemd · Ansible · Claude Code, the first agent program. All of ours is Rust, about 5,000 lines, started 31 October.
+<div class="cast-icon"><svg viewBox="0 0 24 24"><path d="M3 5.5 H14 A1.5 1.5 0 0 1 15.5 7 V12 A1.5 1.5 0 0 1 14 13.5 H8 L5 16.5 V13.5 H4.5 A1.5 1.5 0 0 1 3 12 Z"/><path d="M18.5 9.5 H19.5 A1.5 1.5 0 0 1 21 11 V16 A1.5 1.5 0 0 1 19.5 17.5 H19 V20.5 L16 17.5 H11 A1.5 1.5 0 0 1 9.5 16 V16"/></svg></div>
+<div><div class="cast-name">mime</div><div class="cast-meaning">the gestures dancers talk with</div></div>
+<div>Agent messages: declared channels, checked, recorded</div>
+<div class="cast-status cast-planned">not built</div>
+
+<div class="cast-icon"><svg viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9.5 3 H14.5 V6 H9.5 Z"/><path d="M8.5 11 L9.7 12.2 L11.8 10 M13.5 11 H16 M8.5 16 L9.7 17.2 L11.8 15 M13.5 16 H16"/></svg></div>
+<div><div class="cast-name">regisseur</div><div class="cast-meaning">runs the show, calls the cues</div></div>
+<div>Roles, tickets, workflows; spawns agents through jete</div>
+<div class="cast-status cast-planned">not built</div>
 
 </div>
 
 <!--
-Name each one once; they come back through the talk. jete and barre are the two that hold the
+Introduce the cast: say each name once with its ballet meaning; they come back through the talk. jete and barre are the two that hold the
 boundary, and the demos are about them.
 
 Tools, not a monolith, in practice: jete never learns what an agent is; barre never reads jete's state. Each is
@@ -316,6 +327,9 @@ message", "read my inbox"), and the server carries them to mime over vsock (show
 The names are ballet: a jeté is a leap; the barre is the rail dancers hold on to; mime is the fixed
 vocabulary of gestures dancers use to talk to each other on stage; the régisseur runs the
 performances and calls the cues.
+
+Built on: Firecracker and its jailer, KVM, nftables, systemd, Ansible; Claude Code is the first
+agent program. All of ours is Rust, about 5,000 lines, started 31 October.
 
 Sources: docs/architecture.md (The tools), crates/.
 -->
