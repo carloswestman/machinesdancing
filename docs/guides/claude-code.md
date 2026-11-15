@@ -4,7 +4,7 @@ Claude Code runs in a jete VM on hemlock, behind barre, on your Claude subscript
 reach `api.anthropic.com` and whatever else you allow, by name, and nothing else. Every
 connection it makes, or is refused, is in barre's log.
 
-This is step 3 of the build order ([architecture.md](../architecture.md#build-order)): one agent,
+This is step 3 of the build order ([build-order.md](../build-order.md)): one agent,
 started by hand.
 
 ## What you need

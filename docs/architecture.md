@@ -1,12 +1,13 @@
 # Architecture
 
-The big picture: which tools make up machinesdancing, what each one owns, how they connect, where
-things are stored, and the order we build them in. [PRINCIPLES.md](../PRINCIPLES.md) says what
-must hold; this says how the pieces fit together to make it hold. Each tool gets its own design
-doc when we build it, like [jete.md](design/jete.md) and [barre.md](design/barre.md).
+The big picture: which tools make up machinesdancing, what each one owns, how they connect and
+where things are stored. [PRINCIPLES.md](../PRINCIPLES.md) says what must hold; this says how the
+pieces fit together to make it hold. Each tool gets its own design doc when we build it, like
+[jete.md](design/jete.md) and [barre.md](design/barre.md).
 
 jete and barre exist, and Claude Code runs in a VM behind them (steps 1 to 3 of the
-[build order](#build-order)). mime and regisseur are a starting design, to evolve as we build them.
+[build order](build-order.md), which says what comes next). mime and regisseur are a starting
+design, to evolve as we build them.
 
 ## What we are building
 
@@ -239,19 +240,6 @@ dancers use to talk to each other on stage, where a gesture outside it means not
 The hypervisor is the boundary (principle 3). Every path out of a VM ends at a host tool that
 checks it.
 
-## Build order
-
-The aim is a thin end-to-end slice early (one worker, one ticket, one pull request), then widening.
-
-| Step | Delivers | Status |
-|---|---|---|
-| 1. jete M2: Network | A VM's network link reaches only the addresses it's given, and nothing on the host, the LAN, the tailnet or other VMs. No allowlist by name in jete: that is the gateway's job. | Done. |
-| 2. Egress gateway | barre: allowlist by name and port, logging. Then credential injection. | By name (G1) done; credentials (G2) next. |
-| 3. One agent in a VM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through the gateway, with skills on a read-only disk, doing a task started by hand. | Started: Claude Code in the guest image, behind barre, running prompts started by hand ([claude-code.md](guides/claude-code.md)). No skills disk or real task yet. |
-| 4. Bus (mime) | The shim and the host bus, with channels and schemas from configuration. | Not started. |
-| 5. Control plane (regisseur) | The work repo, the workflow engine with its first rules, the GitHub connector, spawning on tickets. The first end-to-end slice. | Not started. |
-| 6. Widening | More rules, the Jira connector, jete's daemon and speed (snapshots, a warm pool) when spawning on demand needs them. | Not started. |
-
 ## Open questions
 
 1. **Events on hemlock.** Webhooks need a reachable endpoint; hemlock is on a home network.
@@ -266,3 +254,10 @@ The aim is a thin end-to-end slice early (one worker, one ticket, one pull reque
    nothing plans for them yet.
 6. **The human's view.** How the record of messages and decisions is shown (principle 16): the code
    host alone, or a dashboard.
+7. **regisseur's workflow engine.** Our own, or built on Temporal. Temporal gives durable,
+   long-running workflows (restarts, retries, timers, waiting on people), which the work lifecycle
+   needs. Against it: rules are configuration here and Temporal workflows are code, so regisseur
+   would interpret the rules; ticket state must stay in the work repo, with Temporal holding only
+   where each workflow has got to; it's a server and a database to run on hemlock; and its Rust
+   support needs checking. *Before* rules stay in mime either way: they sit on the message's path.
+   To try at step 7 of the build order, with the four example rules above.
