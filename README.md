@@ -15,3 +15,7 @@ tools.
 | [docs/guides/development.md](docs/guides/development.md) | Setting up the Mac, and how building and testing work. |
 | [docs/guides/claude-code.md](docs/guides/claude-code.md) | Running Claude Code in a VM behind barre, on your Claude subscription. |
 | [ansible/](ansible/) | Configuration of the hosts that run everything (currently hemlock). |
+
+## License
+
+[Apache License 2.0](LICENSE). Copyright 2026 Carlos Westman.
