@@ -51,7 +51,7 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 </div>
 <div class="agenda-part">
 <div class="agenda-title">2 · First tools and tests</div>
-<div>The lab · jete: µVM orchestration, demo · barre: network control, demo · Claude Code in a µVM</div>
+<div>The lab · jete: µVM orchestration, demo · barre: network control, demo · Claude Hello World, demo</div>
 </div>
 <div class="agenda-part">
 <div class="agenda-title">3 · Where it stands</div>
@@ -288,27 +288,27 @@ services around them.
 
 <div class="cast">
 
-<div class="cast-icon"><svg viewBox="0 0 24 24"><path d="M2.5 20 Q12 -5 21.5 20" stroke-dasharray="2.2 2.4"/><circle cx="12" cy="7.5" r="2.6" fill="currentColor" stroke="none"/><path d="M1.5 21.5 H22.5"/></svg></div>
+<ToolIcon name="jete" />
 <div><div class="cast-name">jete</div><div class="cast-meaning">jeté: a leap</div></div>
 <div>Boots jailed Firecracker µVMs, runs commands, destroys them</div>
 <div class="cast-status cast-built">built</div>
 
-<div class="cast-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 10 L10 12.5 L7 15"/><path d="M12.5 15.5 H17"/></svg></div>
+<ToolIcon name="jete-agent" />
 <div><div class="cast-name">jete-agent</div><div class="cast-meaning">jete's partner, inside each µVM</div></div>
 <div>Says the µVM is ready; runs commands for the host, over vsock</div>
 <div class="cast-status cast-built">built</div>
 
-<div class="cast-icon"><svg viewBox="0 0 24 24"><path d="M2.5 8.5 H21.5" stroke-width="2.6"/><path d="M6 8.5 V20 M18 8.5 V20"/><path d="M4 20 H8 M16 20 H20"/></svg></div>
+<ToolIcon name="barre" />
 <div><div class="cast-name">barre</div><div class="cast-meaning">the rail dancers hold</div></div>
 <div>Every connection out: allowed by name, or refused; logged</div>
 <div class="cast-status cast-built">built</div>
 
-<div class="cast-icon cast-icon-planned"><svg viewBox="0 0 24 24"><path d="M3 5.5 H14 A1.5 1.5 0 0 1 15.5 7 V12 A1.5 1.5 0 0 1 14 13.5 H8 L5 16.5 V13.5 H4.5 A1.5 1.5 0 0 1 3 12 Z"/><path d="M18.5 9.5 H19.5 A1.5 1.5 0 0 1 21 11 V16 A1.5 1.5 0 0 1 19.5 17.5 H19 V20.5 L16 17.5 H11 A1.5 1.5 0 0 1 9.5 16 V16"/></svg></div>
+<ToolIcon name="mime" />
 <div><div class="cast-name cast-name-planned">mime</div><div class="cast-meaning">the gestures dancers talk with</div></div>
 <div>Agent messages: declared channels, checked, recorded</div>
 <div class="cast-status cast-planned">not built</div>
 
-<div class="cast-icon cast-icon-planned"><svg viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9.5 3 H14.5 V6 H9.5 Z"/><path d="M8.5 11 L9.7 12.2 L11.8 10 M13.5 11 H16 M8.5 16 L9.7 17.2 L11.8 15 M13.5 16 H16"/></svg></div>
+<ToolIcon name="regisseur" />
 <div><div class="cast-name cast-name-planned">regisseur</div><div class="cast-meaning">runs the show, calls the cues</div></div>
 <div>Roles, tickets, workflows; spawns agents through jete</div>
 <div class="cast-status cast-planned">not built</div>
@@ -339,71 +339,37 @@ Sources: docs/architecture.md (The tools), crates/.
 
 # The stack
 
-<div class="grid grid-cols-[3fr_2fr] gap-8 text-sm stack">
-<div>
+<ToolStack />
 
-**On the host**
-
-<div class="bx bx-planned">regisseur: control plane. Roles, tickets, workflows; spawns agents</div>
-<div class="grid grid-cols-3 gap-x-2">
-<div class="flex flex-col">
-<div class="bx bx-built">jete<br/><span class="text-xs">µVM manager</span></div>
-<div class="bx">Firecracker and jailer</div>
-<div class="bx">nftables</div>
-</div>
-<div class="flex flex-col">
-<div class="bx bx-built">barre<br/><span class="text-xs">egress gateway</span></div>
-<div class="bx">SO_ORIGINAL_DST</div>
-<div class="bx">systemd sandbox</div>
-</div>
-<div class="flex flex-col">
-<div class="bx bx-planned">mime<br/><span class="text-xs">message bus</span></div>
-<div class="bx flex-1 flex items-center justify-center">vsock</div>
-</div>
-</div>
-<div class="bx">Linux 7.0 and KVM · Ubuntu Server 26.04</div>
-<div class="bx">hemlock: i5-10500T, 16 GB</div>
-
-</div>
-<div>
-
-**Inside each µVM**
-
-<div class="bx">Claude Code, the agent program</div>
-<div class="bx bx-planned">mime MCP server</div>
-<div class="bx bx-built">jete-agent</div>
-<div class="bx">Ubuntu 26.04 · systemd · Linux 6.18</div>
-<div class="bx">Firecracker's virtual machine</div>
-
-</div>
-</div>
-
-<div class="text-sm pt-4">
-
-Between the two: **vsock** (jete ↔ jete-agent, mime ↔ its MCP server) and a **tap** (the network, to barre).
-
-**Tools, not a monolith:** each layer knows nothing about the ones above it.
-
-</div>
-
-<div class="text-xs opacity-70 pt-2">Green: ours, built. Grey, dashed: ours, not built. White: other people's.</div>
+<div class="text-xs opacity-70 pt-3">Read a column down: what each tool is built on, layer by layer. Green: ours, built. Grey, dashed: ours, not built. White: other people's.</div>
 
 <!--
-Read it bottom up. Hardware, Linux with KVM, then the pieces I didn't write: Firecracker and its
-jailer, nftables, systemd, each under the tool that uses it: jete drives Firecracker and writes the
-nftables rules that send a µVM's traffic to barre; barre picks up those connections, reads where
-they were going (SO_ORIGINAL_DST) and runs as a sandboxed systemd service, its own user, no
-capabilities; mime will talk to the µVMs over vsock. On those, three tools of mine side by side, none of which knows about the
-others: jete runs µVMs, barre decides what their network may reach, mime will carry their messages.
-On top, regisseur composes the three; it's the only one that knows what an "agent" or a "ticket" is.
+Read a column down. Each tool is ours; everything under it is Linux and other people's software,
+and each piece sits under the tool that actually uses it:
 
-Inside each µVM, its own little stack: a guest kernel, systemd, jete-agent so the host can run
-things, and the agent program on top. Two channels cross the boundary: vsock, which needs no
-network, and the tap, which only ever reaches barre.
+- jete: Firecracker and its jailer on KVM (chroot, cgroup v2, a PID namespace, a uid per µVM); a tap
+  per µVM made with ip tuntap, and one nftables table, inet jete, applied with nft -f as one
+  transaction; disks as XFS reflinks (the FICLONE ioctl); pidfd_open and pidfd_send_signal to stop a
+  µVM without hitting a reused pid; flock to allocate ids and addresses; vsock to the guest, through
+  the Unix socket Firecracker exposes on the host (CONNECT <port>).
+- barre: doesn't touch nftables at all. jete's rules redirect the µVM's TCP and DNS to barre's port;
+  barre reads the original destination with getsockopt(SO_ORIGINAL_DST), answers DNS on UDP 53
+  itself, and peeks at the TLS SNI or HTTP Host. It runs as a systemd service: its own user, no
+  capabilities, a seccomp filter (@system-service), AF_INET and AF_UNIX only, the filesystem
+  read-only. Policies are files root writes in /run/barre; it re-reads them every half second. Its
+  log is JSON lines on stdout, which journald keeps.
+- mime will reach the µVMs over vsock, like jete.
 
-Tools, not a monolith, in a picture: jete could run any workload, barre could front any client.
+Both are Rust, about 4,100 lines: tokio for async I/O, rustix for the syscalls (no libc wrappers
+written by hand), static musl binaries.
 
-Source: docs/architecture.md (The tools: "knows nothing about").
+On top, regisseur composes them; it's the only one that will know what an "agent" or a "ticket" is.
+Inside each µVM, its own stack: a guest kernel, systemd, jete-agent, and the agent program on top.
+
+Tools, not a monolith: jete could run any workload, barre could front any client.
+
+Sources: Cargo.toml, crates/jete/src/{vm,net,agent}.rs, crates/barre/src/{serve,policy}.rs,
+ansible/roles/barre/templates/barre.service.j2.
 -->
 
 ---
@@ -460,7 +426,11 @@ docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 
 ---
 
-# jete: µVM orchestration
+# <ToolIcon name="jete" />jete: µVM orchestration
+
+<div class="grid grid-cols-[15rem_1fr] gap-8">
+<ToolStack tool="jete" />
+<div class="text-sm">
 
 <div class="opacity-80 pb-2">So far: ready in 1.7 s, without much optimization. About 1 s of that is the guest's systemd.</div>
 
@@ -472,6 +442,9 @@ docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 | Guest | Minimal Ubuntu 26.04 (mmdebstrap), systemd, kernel 6.18 |
 | Control | **vsock**: a socket between host and guest that needs no network |
 | Network | None by default; a tap device and nftables rules when asked |
+
+</div>
+</div>
 
 <!--
 Each µVM gets a random 8-hex id and its own Unix user (from uid 300000). The jail holds a hard link
@@ -556,11 +529,13 @@ Fallback: show demos/1-vm-lifecycle.txt.
 
 ---
 
-# barre: network control
+# <ToolIcon name="barre" />barre: network control
 
-<div class="opacity-80 pb-2">So far: phase 1, by name. No TLS decryption yet; key injection is next.</div>
+<div class="grid grid-cols-[15rem_1fr] gap-8">
+<ToolStack tool="barre" />
+<div class="text-xs">
 
-<div class="text-sm">
+<div class="opacity-80 pb-2 text-sm">So far: phase 1, by name. No TLS decryption yet; key injection is next.</div>
 
 | Concern | Choice |
 |---|---|
@@ -573,6 +548,7 @@ Fallback: show demos/1-vm-lifecycle.txt.
 | Itself | Its own user, **no capabilities**, systemd sandbox |
 | Record | One **JSON line** per DNS answer and per connection, in the journal |
 
+</div>
 </div>
 
 <!--
@@ -623,7 +599,7 @@ Sources: crates/jete/src/net.rs (BASE_TABLE, PREROUTING, rules), crates/jete/tes
 
 ---
 
-# barre: names, not addresses
+# <ToolIcon name="barre" />barre: names, not addresses
 
 ```mermaid {scale: 0.52}
 sequenceDiagram
@@ -678,6 +654,7 @@ sudo jete exec $id -- curl -sS https://1.1.1.1              # no rule for the ad
 sudo jete exec $id -- curl -sS http://192.168.0.1           # the LAN
 journalctl -u barre -o cat | grep $id |
   jq -c 'select(.decision=="refuse" or .answer=="NXDOMAIN") | {name, dest, answer, reason}'
+sudo nft list table inet jete                               # the rules jete wrote
 ```
 
 <!--
@@ -694,8 +671,7 @@ A failed request alone proves nothing: it could be the network, or a typo. The j
 Note the LAN one: in proxy mode, jete hands the connection to barre and barre refuses it. In
 direct mode, jete's firewall drops it and the request times out (tested in net.rs).
 
-Then, live, the rules that made this happen (the backup slide has an excerpt):
-  sudo nft list table inet jete
+Last command: the rules that made all of this happen. Next slide walks through them.
 
 Clean up: sudo barre-vm rm $id
 
@@ -708,7 +684,80 @@ Fallback: demos/2-egress-policy.txt.
 
 ---
 
-# An agent inside: Claude Code
+# Demo 2: the rules jete wrote
+
+<div class="grid grid-cols-2 gap-6 text-xs nft-code">
+<div>
+
+**Per µVM**: its traffic goes to barre, and only to barre
+
+```bash
+chain vm-a6a22748-prerouting {
+  ip saddr 10.200.0.2 meta l4proto tcp redirect to :15001
+  ip saddr 10.200.0.2 udp dport 53 redirect to :15001
+}
+chain vm-a6a22748-input {
+  ip saddr != 10.200.0.2 drop
+  ip daddr 10.200.0.1 meta l4proto { tcp, udp } th dport 15001 accept
+  drop
+}
+chain vm-a6a22748-forward {
+  ip saddr != 10.200.0.2 drop
+  drop
+}
+```
+
+</div>
+<div>
+
+**Shared**: each tap jumps to its µVM's chains
+
+```bash
+map prerouting_vms {
+  type ifname : verdict
+  elements = { "jete-a6a22748" : jump vm-a6a22748-prerouting }
+}
+chain prerouting {
+  type nat hook prerouting priority dstnat; policy accept;
+  iifname "jete-*" iifname vmap @prerouting_vms
+}
+chain input {
+  type filter hook input priority filter; policy accept;
+  iifname "jete-*" iifname vmap @input_vms
+  iifname "jete-*" drop
+}
+```
+
+</div>
+</div>
+
+<div class="text-sm pt-3">
+
+`sudo nft list table inet jete` on hemlock, trimmed. One table, nothing else on the host touched. Unknown tap: dropped.
+
+</div>
+
+<!--
+Real output from hemlock (µVM a6a22748, proxied, policy api.anthropic.com); the live run shows the
+demo's own µVM. Trimmed: the forward and input maps, the forward, output and postrouting base
+chains (established traffic back to the µVM, and masquerade for direct mode).
+
+Read it top left:
+- prerouting: every TCP connection and every DNS query from the µVM's address is redirected to
+  port 15001 on the host side of its tap: barre. The guest has no say; no proxy settings anywhere.
+- input: only that port on the tap's host address is accepted. Anything with another source
+  address is dropped, so a spoofing guest gets nowhere and barre can trust the source.
+- forward: nothing is routed for a proxied µVM. Everything leaves through barre or not at all.
+- The shared part: one verdict map per hook, keyed by interface name. Adding a µVM is one map
+  element and three chains, in one nft -f transaction; removing it is the reverse.
+- "jete-*" catch-alls: a tap with no entry in the map is dropped.
+
+Source: crates/jete/src/net.rs (BASE_TABLE, PREROUTING, rules), its unit tests check these lines.
+-->
+
+---
+
+# Demo 3: Claude Hello World
 
 <div class="text-sm">
 
@@ -737,8 +786,8 @@ vm: 39195192
 </div>
 
 <!--
-The output shown is a real run (demos/3-claude-code.txt). To run it live, keep the token file off
-screen; it takes about 6 s:
+Run it live, from the Mac; keep the token file off screen. It takes about 6 s. The output shown is
+a real run (demos/3-claude-code.txt), the fallback:
   scripts/claude-vm "Say hello to the BLUG folks!"
   ssh hemlock journalctl -u barre -o cat | grep ID     # api.anthropic.com, and nothing else
 
@@ -927,31 +976,6 @@ layout: section
 ---
 
 # Backup
-
----
-
-# Backup: a proxied µVM's nftables rules
-
-```bash
-# Base table, created once (excerpt): each tap goes to its µVM's chains
-chain prerouting { type nat hook prerouting priority dstnat; iifname vmap @prerouting_vms }
-chain input      { ...; iifname "jete-*" iifname vmap @input_vms;   iifname "jete-*" drop }
-chain forward    { ...; iifname "jete-*" iifname vmap @forward_vms; iifname "jete-*" drop }
-
-# Per µVM, proxy mode on port 15001
-add rule inet jete vm-<id>-prerouting ip saddr 10.200.0.2 meta l4proto tcp redirect to :15001
-add rule inet jete vm-<id>-prerouting ip saddr 10.200.0.2 udp dport 53 redirect to :15001
-add rule inet jete vm-<id>-input ip saddr != 10.200.0.2 drop
-add rule inet jete vm-<id>-input ip daddr 10.200.0.1 meta l4proto { tcp, udp } th dport { 15001 } accept
-add rule inet jete vm-<id>-forward ip saddr != 10.200.0.2 drop
-add rule inet jete vm-<id>-forward drop
-```
-
-<!--
-Live: sudo nft list table inet jete
-
-Source: crates/jete/src/net.rs, and its unit tests, which check these exact lines.
--->
 
 ---
 
