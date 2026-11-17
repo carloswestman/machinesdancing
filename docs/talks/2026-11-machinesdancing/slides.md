@@ -303,12 +303,12 @@ services around them.
 <div>Every connection out: allowed by name, or refused; logged</div>
 <div class="cast-status cast-built">built</div>
 
-<div class="cast-icon"><svg viewBox="0 0 24 24"><path d="M3 5.5 H14 A1.5 1.5 0 0 1 15.5 7 V12 A1.5 1.5 0 0 1 14 13.5 H8 L5 16.5 V13.5 H4.5 A1.5 1.5 0 0 1 3 12 Z"/><path d="M18.5 9.5 H19.5 A1.5 1.5 0 0 1 21 11 V16 A1.5 1.5 0 0 1 19.5 17.5 H19 V20.5 L16 17.5 H11 A1.5 1.5 0 0 1 9.5 16 V16"/></svg></div>
+<div class="cast-icon cast-icon-planned"><svg viewBox="0 0 24 24"><path d="M3 5.5 H14 A1.5 1.5 0 0 1 15.5 7 V12 A1.5 1.5 0 0 1 14 13.5 H8 L5 16.5 V13.5 H4.5 A1.5 1.5 0 0 1 3 12 Z"/><path d="M18.5 9.5 H19.5 A1.5 1.5 0 0 1 21 11 V16 A1.5 1.5 0 0 1 19.5 17.5 H19 V20.5 L16 17.5 H11 A1.5 1.5 0 0 1 9.5 16 V16"/></svg></div>
 <div><div class="cast-name cast-name-planned">mime</div><div class="cast-meaning">the gestures dancers talk with</div></div>
 <div>Agent messages: declared channels, checked, recorded</div>
 <div class="cast-status cast-planned">not built</div>
 
-<div class="cast-icon"><svg viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9.5 3 H14.5 V6 H9.5 Z"/><path d="M8.5 11 L9.7 12.2 L11.8 10 M13.5 11 H16 M8.5 16 L9.7 17.2 L11.8 15 M13.5 16 H16"/></svg></div>
+<div class="cast-icon cast-icon-planned"><svg viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9.5 3 H14.5 V6 H9.5 Z"/><path d="M8.5 11 L9.7 12.2 L11.8 10 M13.5 11 H16 M8.5 16 L9.7 17.2 L11.8 15 M13.5 16 H16"/></svg></div>
 <div><div class="cast-name cast-name-planned">regisseur</div><div class="cast-meaning">runs the show, calls the cues</div></div>
 <div>Roles, tickets, workflows; spawns agents through jete</div>
 <div class="cast-status cast-planned">not built</div>
