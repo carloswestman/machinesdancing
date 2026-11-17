@@ -432,16 +432,14 @@ docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 <ToolStack tool="jete" />
 <div class="text-sm">
 
-<div class="opacity-80 pb-2">So far: ready in 1.7 s, without much optimization. About 1 s of that is the guest's systemd.</div>
+<div class="opacity-80 pb-3">So far: ready in 1.7 s, not tuned yet. About 1 s of that is the guest's systemd.</div>
 
-| Concern | Choice |
-|---|---|
-| Hypervisor | **Firecracker** on KVM: minimal device model, written in Rust |
-| Jail | Firecracker's **jailer**: chroot, cgroup, PID namespace, its own uid per µVM |
-| Disks | **XFS reflinks**: each µVM's disk is a copy-on-write clone of a read-only image |
-| Guest | Minimal Ubuntu 26.04 (mmdebstrap), systemd, kernel 6.18 |
-| Control | **vsock**: a socket between host and guest that needs no network |
-| Network | None by default; a tap device and nftables rules when asked |
+- **Its own kernel.** The guest runs Linux 6.18, not the host's 7.0: the agent shares no kernel with anything.
+- **Jailed twice.** Behind KVM, Firecracker itself is jailed: memory capped at the guest's RAM + 128 MiB.
+- **Disks cost nothing.** A reflink copy of a read-only image: instant, blocks shared until written.
+- **No network unless asked.** Just `lo`; or, when asked, one exit: barre.
+- **Control without a network.** jete-agent answers only the host; if the host hangs up, all it started is killed.
+- **A plain guest.** Minimal Ubuntu 26.04 (mmdebstrap, about 120 packages): agents get a normal Linux.
 
 </div>
 </div>
@@ -533,26 +531,22 @@ Fallback: show demos/1-vm-lifecycle.txt.
 
 <div class="grid grid-cols-[15rem_1fr] gap-8">
 <ToolStack tool="barre" />
-<div class="text-xs">
+<div class="text-sm">
 
-<div class="opacity-80 pb-2 text-sm">So far: phase 1, by name. No TLS decryption yet; key injection is next.</div>
+<div class="opacity-80 pb-3">So far: phase 1, by name. No TLS decryption yet; key injection is next.</div>
 
-| Concern | Choice |
-|---|---|
-| Ownership | **jete** owns isolation, **barre** the policy. A µVM gets one exit; nothing listening, nothing out |
-| Interception | **nftables** redirects all of a µVM's TCP and DNS to barre: the guest can't opt out |
-| DNS | barre answers it: a **synthetic address** per allowed name, `NXDOMAIN` for the rest |
-| Decision | By **name and port**; checks TLS SNI and the HTTP Host; public addresses only |
-| Traffic | Bytes copied both ways, **unread**: no TLS decryption |
-| Policy | Files written by root (`barre allow`), applied within 0.5 s; `revoke` cuts the µVM off |
-| Itself | Its own user, **no capabilities**, systemd sandbox |
-| Record | One **JSON line** per DNS answer and per connection, in the journal |
+- **One exit per µVM.** jete owns isolation, barre the policy. Nothing listening, nothing gets out.
+- **The guest can't opt out.** No proxy settings: every TCP connection and DNS query lands on barre.
+- **Names, not addresses.** Each allowed name gets a synthetic address; the rest get `NXDOMAIN`.
+- **Checked, not read.** By name and port; the TLS SNI or HTTP Host must match; public addresses only.
+- **Changed live.** `barre allow` and `revoke` apply within half a second; revoke cuts the µVM off.
+- **Every decision on record.** One JSON line per DNS answer and per connection.
 
 </div>
 </div>
 
 <!--
-The same shape as jete's slide: what it does, and the choice for each part.
+The same shape as jete's slide: on the left what it's built on, on the right what that buys.
 
 Ownership was a design correction mid-project: at first jete and the gateway would both have had a
 say over the same µVM's traffic. Now a µVM has exactly one exit. Direct (jete run --allow ...):
@@ -968,6 +962,8 @@ class: text-center
 ---
 
 # Thank you
+
+<img src="/qr-repo.svg" class="mx-auto w-40 my-6" alt="QR code for github.com/carloswestman/machinesdancing">
 
 [github.com/carloswestman/machinesdancing](https://github.com/carloswestman/machinesdancing)
 
