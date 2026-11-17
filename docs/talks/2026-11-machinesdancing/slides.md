@@ -425,7 +425,7 @@ runs on hemlock; the demos are live.
 
 <div class="grid grid-cols-[auto_1fr] gap-10 items-center">
 
-<img src="/thelab.jpg" class="h-[400px] rounded shadow" alt="hemlock, a mini PC with a switch on top and a nest of cables, in a cabinet">
+<img src="/thelab.jpg" class="h-[400px] rounded shadow" alt="hemlock, a mini PC with a switch on top, a nest of cables, and a Wi-Fi extender on the wall above">
 
 <div>
 
