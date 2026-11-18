@@ -796,16 +796,18 @@ Sources: images/rootfs/build, scripts/claude-vm, docs/guides/claude-code.md.
 
 # What works today
 
+<div class="text-xs opacity-70 pb-3"><span style="color:#059669">●</span> built and running on hemlock.</div>
+
 <div class="text-sm compact">
 
 | Capability | Status | Evidence |
 |---|---|---|
-| µVM lifecycle, jail, cleanup | Implemented, tested | jete `tests/vm.rs` (3, real µVMs) |
-| Readiness and command execution | Implemented, tested | jete `tests/agent.rs` (13) |
-| Host, LAN, tailnet, other µVMs unreachable | Implemented, tested | jete `tests/net.rs` (6) |
-| DNS and egress by name, logged | Implemented, tested | barre `tests/vm.rs` (2), 21 unit tests |
-| IPv6, ICMP, spoofed sources dropped | Implemented, **not tested** | nftables rules in `net.rs` |
-| Claude Code in a µVM, behind barre | Tested by hand | `scripts/claude-vm` |
+| µVM lifecycle, jail, cleanup <span style="color:#059669">●</span> | Implemented, tested | jete `tests/vm.rs` (3, real µVMs) |
+| Readiness and command execution <span style="color:#059669">●</span> | Implemented, tested | jete `tests/agent.rs` (13) |
+| Host, LAN, tailnet, other µVMs unreachable <span style="color:#059669">●</span> | Implemented, tested | jete `tests/net.rs` (6) |
+| DNS and egress by name, logged <span style="color:#059669">●</span> | Implemented, tested | barre `tests/vm.rs` (2), 21 unit tests |
+| IPv6, ICMP, spoofed sources dropped <span style="color:#059669">●</span> | Implemented, **not tested** | nftables rules in `net.rs` |
+| Claude Code in a µVM, behind barre <span style="color:#059669">●</span> | Tested by hand | `scripts/claude-vm` |
 | Repo access, as a GitHub App | **Designed** | `repo-access.md` |
 | Credentials kept out of µVMs | **Planned** | barre phase 2 |
 | Daemon, snapshots; mime; regisseur | **Planned** | jete M3, M4; not designed |
