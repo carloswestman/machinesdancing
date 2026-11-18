@@ -200,8 +200,8 @@ The niche, if it fits: an open-source project for running AI agents on-prem, fas
 
 | | |
 |---|---|
-| **Enforced, not requested** <span style="color:#059669">●</span> | The rules live in the host, never in the prompt |
 | **One µVM per agent** <span style="color:#059669">●</span> | Its own kernel; created for the work, destroyed after |
+| **Enforced, not requested** <span style="color:#059669">●</span> | The rules live in the host, never in the prompt |
 | **Deny by default** <span style="color:#059669">●</span> | Network, files, tools, secrets: granted by role, never implied |
 | **Secrets stay outside** | Minimum keys inside; the rest added on the way out |
 | **Identity belongs to the system** | From the hypervisor, not the agent's word; declared channels |
