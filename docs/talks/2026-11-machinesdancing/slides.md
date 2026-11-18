@@ -47,11 +47,11 @@ The names are ballet: jeté is a leap (the µVM manager, fast), the barre is the
 <div class="agenda pt-6">
 <div class="agenda-part">
 <div class="agenda-title">1 · The idea: an architecture</div>
-<div>Motivation: how agents run today, and how they should · Design principles · The stack</div>
+<div>Motivation: how agents run today, and how they should · Design principles · The lab · The stack</div>
 </div>
 <div class="agenda-part">
 <div class="agenda-title">2 · First tools and tests</div>
-<div>The lab · jete: µVM orchestration, demo · barre: network control, demo · Claude Hello World, demo</div>
+<div>jete: µVM orchestration, demo · barre: network control, demo · Claude Hello World, demo</div>
 </div>
 <div class="agenda-part">
 <div class="agenda-title">3 · Where it stands</div>
@@ -282,6 +282,45 @@ services around them.
 
 ---
 
+# The lab
+
+<div class="grid grid-cols-[auto_1fr] gap-10 items-center">
+
+<img src="/thelab.jpg" class="h-[400px] rounded shadow" alt="hemlock, a mini PC with a switch on top, a nest of cables, and a Wi-Fi extender on the wall above">
+
+<div>
+
+**hemlock**, the black box at the bottom
+
+- HP EliteDesk 800, i5-10500T, 6 cores / 12 threads
+- 16 GB RAM, about 12 GB for µVMs
+- Ubuntu Server 26.04, kernel 7.0, KVM
+- Firecracker and jailer 1.17
+- nftables 1.1.6
+- On a home LAN, joined to a tailnet
+
+**The Mac builds, hemlock runs**: static musl binaries, copied over SSH by a cargo runner. `cargo test` on the Mac boots real µVMs on hemlock. No compilers on hemlock; Ansible owns its config.
+
+<div class="pt-4 text-sm opacity-70">Cable management: not designed.</div>
+
+</div>
+</div>
+
+<!--
+A laugh first: point at the black box, "that's where every µVM in this talk runs."
+
+hemlock is configured only by Ansible, from the Mac: nothing on it is set up by hand.
+
+The dev loop: everything targets x86_64-unknown-linux-musl. The runner is a small shell script
+(scripts/hemlock-run): binaries are named by content hash, so an unchanged binary isn't sent again.
+It means the tests that matter run against real Firecracker µVMs, not mocks.
+
+Sources: docs/design/jete.md (Host), uname, firecracker --version and nft --version on hemlock;
+docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
+-->
+
+---
+
 # The cast
 
 <div class="opacity-80 pb-5">Small tools, each with one job, named from ballet.</div>
@@ -383,45 +422,6 @@ jete, barre, and an agent inside: built and tested on real µVMs
 <!--
 The switch from the idea to what exists. Everything from here to the status slide is built and
 runs on hemlock; the demos are live.
--->
-
----
-
-# The lab
-
-<div class="grid grid-cols-[auto_1fr] gap-10 items-center">
-
-<img src="/thelab.jpg" class="h-[400px] rounded shadow" alt="hemlock, a mini PC with a switch on top, a nest of cables, and a Wi-Fi extender on the wall above">
-
-<div>
-
-**hemlock**, the black box at the bottom
-
-- HP EliteDesk 800, i5-10500T, 6 cores / 12 threads
-- 16 GB RAM, about 12 GB for µVMs
-- Ubuntu Server 26.04, kernel 7.0, KVM
-- Firecracker and jailer 1.17
-- nftables 1.1.6
-- On a home LAN, joined to a tailnet
-
-**The Mac builds, hemlock runs**: static musl binaries, copied over SSH by a cargo runner. `cargo test` on the Mac boots real µVMs on hemlock. No compilers on hemlock; Ansible owns its config.
-
-<div class="pt-4 text-sm opacity-70">Cable management: not designed.</div>
-
-</div>
-</div>
-
-<!--
-A laugh first: point at the black box, "that's where every µVM in this talk runs."
-
-hemlock is configured only by Ansible, from the Mac: nothing on it is set up by hand.
-
-The dev loop: everything targets x86_64-unknown-linux-musl. The runner is a small shell script
-(scripts/hemlock-run): binaries are named by content hash, so an unchanged binary isn't sent again.
-It means the tests that matter run against real Firecracker µVMs, not mocks.
-
-Sources: docs/design/jete.md (Host), uname, firecracker --version and nft --version on hemlock;
-docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 -->
 
 ---
