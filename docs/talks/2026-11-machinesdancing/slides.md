@@ -958,7 +958,7 @@ Repository: github.com/carloswestman/machinesdancing (on the last slide).
 
 <div class="text-2xl pt-6 space-y-10">
 
-- **Open source:** what would make this useful to you? What's missing, what's in the way?
+- **Open source:** what does it take to make this a successful open source project?
 - **LinuxFest:** is there a good angle for a submission? Which part would you want to hear about?
 
 </div>
