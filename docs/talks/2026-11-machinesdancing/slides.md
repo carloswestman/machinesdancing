@@ -947,9 +947,33 @@ itself: safe because nothing the agent writes takes effect before the human acts
 hemlock changes only through Ansible, no CI runs its code with secrets), and they start with docs,
 scripts and tests, not barre's policy code.
 
-Then open the floor for questions.
+Then the questions slide: mine for them first, then theirs.
 
 Repository: github.com/carloswestman/machinesdancing (on the last slide).
+-->
+
+---
+
+# Questions (for you too)
+
+<div class="text-2xl pt-6 space-y-10">
+
+- **Open source:** what would make this useful to you? What's missing, what's in the way?
+- **LinuxFest:** is there a good angle for a submission? Which part would you want to hear about?
+
+</div>
+
+<!--
+Ask, then wait. It's an invitation, not a formality: the room uses Linux on their own hardware, which
+is who this is for.
+
+Open source: listen for what they'd run it on, which agents, what they'd want to reach, and what
+stops them (setup, Firecracker, KVM on their hardware, docs).
+
+LinuxFest: candidate angles if they need prompting: the Linux pieces (jailer, nftables redirect and
+SO_ORIGINAL_DST, vsock, reflinks) as a "how to box an agent" talk; or the policy-outside-the-agent idea.
+
+Then open the floor for their questions.
 -->
 
 ---
