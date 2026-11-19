@@ -46,7 +46,7 @@ code, pre, .slidev-code {
 .compact td, .compact th { padding: 0.35rem 0.6rem; line-height: 1.3; }
 
 /* The cast: one row per tool, a small line icon (components/ToolIcon.vue) for its ballet name. */
-.cast { display: grid; grid-template-columns: auto 13rem 1fr auto; column-gap: 1.2rem; row-gap: 0.9rem; align-items: center; }
+.cast { display: grid; grid-template-columns: auto 12rem 10rem 1fr auto; column-gap: 1.2rem; row-gap: 0.9rem; align-items: center; }
 .tool-icon { width: 3rem; height: 3rem; border-radius: 999px; background: #ecfdf5; color: #047857; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .tool-icon svg { width: 1.9rem; height: 1.9rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tool-icon-planned { background: #f3f4f6; color: #9ca3af; border: 1px dashed #9ca3af; }
@@ -59,7 +59,9 @@ h1 .tool-icon svg { width: 0.8em; height: 0.8em; }
 .cast-status { font-size: 0.75rem; border-radius: 999px; padding: 0.1rem 0.6rem; white-space: nowrap; }
 .cast-built { background: #d1fae5; color: #064e3b; }
 .cast-planned { background: #f3f4f6; color: #6b7280; border: 1px dashed #9ca3af; }
-.cast > div:nth-child(4n+3) { font-size: 1rem; }
+.cast > div:nth-child(5n+4) { font-size: 1rem; }
+.cast-role { font-weight: 600; font-size: 0.95rem; color: #047857; line-height: 1.25; }
+.cast-role-planned { color: #9ca3af; }
 
 /* Title slide: the ballet photo (Pexels, pexels-olivia-3216244-27509169), darkened behind the text */
 .slidev-layout.cover.cover-photo {

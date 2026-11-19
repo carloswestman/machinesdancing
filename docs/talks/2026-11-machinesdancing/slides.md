@@ -329,26 +329,31 @@ docs/guides/development.md, .cargo/config.toml, scripts/hemlock-run.
 
 <ToolIcon name="jete" />
 <div><div class="cast-name">jete</div><div class="cast-meaning">jeté: a leap</div></div>
+<div class="cast-role">µVM lifecycle</div>
 <div>Boots jailed Firecracker µVMs, runs commands, destroys them</div>
 <div class="cast-status cast-built">built</div>
 
 <ToolIcon name="jete-agent" />
 <div><div class="cast-name">jete-agent</div><div class="cast-meaning">jete's partner, inside each µVM</div></div>
+<div class="cast-role">Control inside the µVM</div>
 <div>Says the µVM is ready; runs commands for the host, over vsock</div>
 <div class="cast-status cast-built">built</div>
 
 <ToolIcon name="barre" />
 <div><div class="cast-name">barre</div><div class="cast-meaning">the rail dancers hold</div></div>
+<div class="cast-role">Networking<span class="cast-role-planned">, key management</span></div>
 <div>Every connection out: allowed by name, or refused; logged</div>
 <div class="cast-status cast-built">built</div>
 
 <ToolIcon name="mime" />
 <div><div class="cast-name cast-name-planned">mime</div><div class="cast-meaning">the gestures dancers talk with</div></div>
+<div class="cast-role cast-role-planned">Agent messaging</div>
 <div>Agent messages: declared channels, checked, recorded</div>
 <div class="cast-status cast-planned">not built</div>
 
 <ToolIcon name="regisseur" />
 <div><div class="cast-name cast-name-planned">regisseur</div><div class="cast-meaning">runs the show, calls the cues</div></div>
+<div class="cast-role cast-role-planned">Agent orchestration</div>
 <div>Roles, tickets, workflows; spawns agents through jete</div>
 <div class="cast-status cast-planned">not built</div>
 
