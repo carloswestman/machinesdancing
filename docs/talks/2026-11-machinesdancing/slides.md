@@ -18,8 +18,7 @@ mdc: true
 
 <div class="pt-10 text-lg">
 
-**Carlos Westman** · CTO at relativo.io<br/>
-Bellingham, WA
+**Carlos Westman** · CTO at relativo.io
 
 </div>
 
