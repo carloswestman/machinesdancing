@@ -11,13 +11,88 @@ code, pre, .slidev-code {
   height: auto !important;
 }
 
-/* The principles slide: two compact tables without header rows. */
-.principles table { margin: 0; }
-.principles thead { display: none; }
-.principles td { padding: 0.2rem 0.4rem; line-height: 1.25; }
-
 /* Long output lines wrap instead of running off the slide. */
 .wrap-code pre, .wrap-code code {
   white-space: pre-wrap !important;
   word-break: break-word;
+}
+
+/* Boxes for the "today vs. should" and stack slides. */
+.bx { border: 1px solid #9ca3af; border-radius: 6px; padding: 0.3rem 0.6rem; background: #fff; }
+.bx-host { background: #f9fafb; padding: 0.6rem; }
+.bx-label { font-size: 0.75rem; opacity: 0.7; padding-bottom: 0.4rem; }
+.bx-risk { background: #fee2e2; border-color: #dc2626; color: #7f1d1d; }
+.bx-built { background: #d1fae5; border-color: #059669; color: #064e3b; }
+.bx-planned { background: #f3f4f6; border-color: #9ca3af; border-style: dashed; color: #6b7280; }
+.bx-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem; }
+.bx-row > .bx { flex: 1; text-align: center; }
+.chip { display: inline-block; border-radius: 999px; padding: 0.05rem 0.55rem; margin: 0.15rem 0.1rem; font-size: 0.75rem; }
+.stack .bx { text-align: center; margin-top: 0.3rem; }
+.bx-arrow { text-align: center; font-size: 0.7rem; color: #4b5563; line-height: 1.2; padding: 0.15rem 0; }
+.bx-prompt { font-family: ui-monospace, monospace; font-size: 0.68rem; background: #fff; border: 1px solid #fca5a5; border-radius: 4px; padding: 0.2rem 0.4rem; color: #7f1d1d; }
+
+/* A compact two-column table without a header row. */
+.tight table { margin: 0; }
+.tight thead { display: none; }
+.tight td { padding: 0.35rem 0.6rem; line-height: 1.3; }
+.tight td:first-child { white-space: nowrap; }
+
+/* The agenda: one block per part of the talk. */
+.agenda-part { border-left: 4px solid #059669; padding: 0.5rem 0 0.5rem 1rem; margin-bottom: 1.6rem; font-size: 1.1rem; }
+.agenda-title { font-weight: 700; font-size: 1.5rem; padding-bottom: 0.3rem; }
+
+/* A compact table that keeps its header row. */
+.compact table { margin: 0; }
+.compact td, .compact th { padding: 0.35rem 0.6rem; line-height: 1.3; }
+
+/* The cast: one row per tool, a small line icon (components/ToolIcon.vue) for its ballet name. */
+.cast { display: grid; grid-template-columns: auto 12rem 10rem 1fr auto; column-gap: 1.2rem; row-gap: 0.9rem; align-items: center; }
+.tool-icon { width: 3rem; height: 3rem; border-radius: 999px; background: #ecfdf5; color: #047857; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.tool-icon svg { width: 1.9rem; height: 1.9rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tool-icon-planned { background: #f3f4f6; color: #9ca3af; border: 1px dashed #9ca3af; }
+/* In a slide title: the tool's icon before its name. */
+h1 .tool-icon { width: 1.25em; height: 1.25em; vertical-align: -0.22em; margin-right: 0.3em; }
+h1 .tool-icon svg { width: 0.8em; height: 0.8em; }
+.cast-name { font-weight: 700; font-size: 1.15rem; line-height: 1.2; }
+.cast-name-planned { color: #9ca3af; }
+.cast-meaning { font-size: 0.8rem; font-style: italic; opacity: 0.7; }
+.cast-status { font-size: 0.75rem; border-radius: 999px; padding: 0.1rem 0.6rem; white-space: nowrap; }
+.cast-built { background: #d1fae5; color: #064e3b; }
+.cast-planned { background: #f3f4f6; color: #6b7280; border: 1px dashed #9ca3af; }
+.cast > div:nth-child(5n+4) { font-size: 1rem; }
+.cast-role { font-weight: 600; font-size: 0.95rem; color: #047857; line-height: 1.25; }
+.cast-role-planned { color: #9ca3af; }
+
+/* Title slide: the ballet photo (Pexels, pexels-olivia-3216244-27509169), darkened behind the text */
+.slidev-layout.cover.cover-photo {
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, 0.92) 0%, rgba(8, 10, 14, 0.78) 45%, rgba(8, 10, 14, 0.35) 100%),
+    url('/cover-ballet.jpg') center / cover no-repeat;
+  color: #f4f4f2;
+}
+.slidev-layout.cover.cover-photo h1,
+.slidev-layout.cover.cover-photo strong { color: #ffffff; }
+.slidev-layout.cover.cover-photo .note { color: rgba(244, 244, 242, 0.75); }
+
+/* Full-bleed photo slide, before Thank you */
+.slidev-layout.full-photo {
+  background: #000 url('/dancing-machines.jpg') center / cover no-repeat;
+  padding: 0;
+}
+.slidev-layout.full-photo .photo-credit {
+  position: absolute;
+  left: 1rem;
+  bottom: 0.6rem;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 0 4px #000, 0 0 2px #000;
+}
+
+/* nft output, long lines: small enough to show whole rules. */
+.nft-code .slidev-code { font-size: 0.6rem !important; line-height: 1.4 !important; }
+
+/* Terminal output and config files: black, like a terminal (themes in setup/shiki.ts). */
+.slidev-layout pre.slidev-code, .slidev-layout .slidev-code-wrapper pre {
+  background: #0d1117 !important;
+  color: #e6edf3;
 }

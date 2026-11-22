@@ -16,8 +16,7 @@ npm run export     # slides.pdf, a fallback copy (needs playwright-chromium, ins
 
 ## Still to fill in
 
-- The AI disclosure in your own words (slide 2).
-- Whether to show Claude Code live (slide 18). It works; keep the token file off screen.
+- The AI disclosure in your own words (slide 6, "How I work").
 
 ## Fact sheet
 
@@ -61,7 +60,7 @@ npm run export     # slides.pdf, a fallback copy (needs playwright-chromium, ins
 | A guest can't spoof another source address | Per-VM chains drop anything not from the VM's own address | Rules in `crates/jete/src/net.rs`, checked by unit tests | **Not tested end to end** |
 | IPv6, ICMP and other UDP don't leave | Each VM chain ends in `drop`; its rules match IPv4 only | Other UDP: `net.rs` proxy test. IPv6, ICMP: rules only | **IPv6 and ICMP not tested** |
 | No egress if barre is down | jete only redirects to the port; nothing is forwarded | `net.rs` proxy test, "with nothing listening" | |
-| Policy changes apply without touching the guest | barre re-reads policies every 0.5 s | barre `vm.rs` (revoke); demo 3 | Updated rules affect new connections only. Revoke closes open ones (code, **not tested**), and they aren't logged as closed |
+| Policy changes apply without touching the guest | barre re-reads policies every 0.5 s | barre `vm.rs` (revoke) | Updated rules affect new connections only. Revoke closes open ones (code, **not tested**), and they aren't logged as closed |
 | A guest process can't use the agent to become root | The agent accepts vsock connections only from the host (CID 2) | `crates/jete-agent/src/main.rs` | **Not tested** from inside a guest |
 | Credentials aren't exposed to the guest | **Not true today**: Claude Code's token is in the VM while it runs | `scripts/claude-vm` | Phase 2: barre adds credentials |
 | The VM can't escape to the host | Firecracker, KVM, the jailer | Upstream's design and testing | Not tested by this project; no claim beyond upstream's |
@@ -80,9 +79,11 @@ On hemlock, in a terminal with a large font. Recorded runs are in [demos/](demos
 | 5 | Allowed: `getent hosts`, `curl -sI https://example.com`, SSH banner | `198.18.0.1`, `HTTP/2 200`, `SSH-2.0-...` | same |
 | 6 | Refused: github.io, https://github.com, https://1.1.1.1, http://192.168.0.1 | Exit codes 6, 35, 35, 56 | same |
 | 7 | The journal, filtered with `jq` | Four refusals with reasons, one `NXDOMAIN` | Backup slide "barre's log" |
-| 8 | `barre allow ... 1.1.1.1; sleep 1`, then `curl -sI https://1.1.1.1` | `HTTP/2 301` | same |
-| 9 | `barre revoke`, then curl example.com | `Could not resolve host` | same |
-| 10 | `sudo barre-vm rm $id` | The id | |
+| 8 | `sudo nft list table inet jete` | jete's table: the per-VM redirect, input and forward chains | Slide 18, "Demo 2: the rules jete wrote" (real output) |
+| 9 | `sudo barre-vm rm $id` | The id | |
+| 10 | On the Mac: `scripts/claude-vm "Say hello to the BLUG folks!"` (token file off screen) | `ready in ~1700 ms`, a greeting, `vm: ID`; about 6 s | `demos/3-claude-code.txt` |
+| 11 | `ssh hemlock journalctl -u barre -o cat \| grep ID` | Connections to `api.anthropic.com` only | same |
+| 12 | `ssh hemlock sudo barre-vm rm ID` | The id | |
 
 Notes:
 
@@ -92,7 +93,7 @@ Notes:
 - **`jete exec` passes stdin through.** In a script, run it with `</dev/null`, or it reads the
   rest of the script.
 - example.com, github.com and 1.1.1.1 are outside services. If the venue's network is down,
-  demos 2 and 3 fail: use the transcripts.
+  demo 2 fails: use the transcript.
 - Never show the token file, `~/.config/machinesdancing/`, or `claude setup-token` output.
 
 ## Questions to expect
@@ -120,15 +121,26 @@ Notes:
     rest. Known gap: domain fronting. Phase 2 decrypts only where it adds credentials.
 11. **What runs as root?** `jete` (the jailer needs it) and `barre allow`. Each Firecracker runs as
     its own user; barre's service as `barre`, without capabilities.
-12. **How did you use AI, and how do you check it?** See slide 2. Tests boot real VMs; every
+12. **How did you use AI, and how do you check it?** See slide 6, "How I work". Tests boot real VMs; every
     status claim points at one.
+13. **How will agents use git?** Like a developer: plain `git` and `gh`, as a GitHub App per role.
+    The host mints a token that lasts an hour, limited to the task's repo, and writes it to a
+    memory-only file in the µVM; it refreshes it every 50 minutes. Later, barre adds it on the way
+    out and the µVM holds none. Designed, not built (`docs/design/repo-access.md`).
+14. **Can an agent merge, or change CI?** No. A ruleset on `main` needs the human's approval as
+    the only code owner; the App has no `workflows` permission, so GitHub refuses pushes under
+    `.github/workflows/`. The guardrail is git's own: the merge.
+15. **Why not Temporal for the workflows?** An open question (`docs/architecture.md`). It gives
+    durable, long-running workflows; against it, rules here are configuration, not code, and it's
+    a server and a database on hemlock. To try when regisseur is built.
 
 ## Before presenting
 
-1. **Decide on the Claude Code demo** (slide 18). If you show it, rehearse it like the others.
-2. **Rehearse demos 1 to 3 twice** from a clean state, on the network you'll have there.
-3. **Decide on the half-second gap**: keep the `sleep 1`, or make `barre allow` wait until barre
+1. **Rehearse all three demos twice** from a clean state, on the network you'll have there.
+2. **Decide on the half-second gap**: keep the `sleep 1`, or make `barre allow` wait until barre
    is listening.
-4. **Check slide 19's numbers** if more code lands: test counts, status labels.
-5. **Export the PDF** and keep it with the transcripts, offline.
-6. **Make the repository public**: the last slide links to it.
+3. **Check slide 20's numbers** if more code lands: test counts, status labels.
+4. **Export the PDF** and keep it with the transcripts, offline.
+5. **Make the repository public**: the last slide links to it.
+6. **The license is Apache 2.0** (PR #22). If asked why: permissive, so forks and company use
+   are fine; it has a patent grant; and services can still be built on top.
