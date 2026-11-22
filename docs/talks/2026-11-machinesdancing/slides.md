@@ -19,7 +19,7 @@ mdc: true
 <div class="pt-10 text-lg">
 
 **Carlos Westman** · CTO at relativo.io<br/>
-Recently moved from Squamish, BC to Bellingham, WA
+Bellingham, WA
 
 </div>
 
