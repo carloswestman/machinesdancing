@@ -1,0 +1,1 @@
+Refusal check; this file must never reach main.
