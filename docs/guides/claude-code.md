@@ -38,7 +38,7 @@ prompts: the VM and barre are what contain it, not Claude Code's own checks.
 The token goes over ssh's stdin into Claude Code's environment. It is never on a command line, and
 never written to hemlock or to the VM's disk. It is, though, inside the VM while Claude Code runs,
 so anything in the VM could read it and use it, toward the names the VM may reach. Keeping
-credentials out of VMs entirely is barre's phase 2 ([barre.md](../design/barre.md#phase-2-credentials)).
+credentials out of VMs entirely is barre's G2 ([barre.md](../design/barre.md#g2-credentials)).
 
 ## Letting it reach more
 
