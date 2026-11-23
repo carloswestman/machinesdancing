@@ -12,8 +12,8 @@ harness can work on other repos later ([instances.md](design/instances.md)).
 |---|---|---|
 | 1. jete M2: Network | A µVM's network link reaches only the addresses it's given, and nothing on the host, the LAN, the tailnet or other µVMs. No allowlist by name in jete: that is the gateway's job. | Done. |
 | 2. barre G1: By name | The egress gateway: allowlist by name and port, logging. | Done. |
-| 3. One agent in a µVM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through barre, doing a task started by hand. | Started: Claude Code in the guest image, behind barre, running prompts started by hand ([claude-code.md](guides/claude-code.md)). |
-| 4. Repo access | The agent works with git and `gh` as a developer does, on the repos its instance names, as a GitHub App for its role: [repo-access.md](design/repo-access.md), configured by the instance: [instances.md](design/instances.md). | Designed. |
+| 3. One agent in a µVM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through barre, doing a task started by hand. | Done: Claude Code in the guest image, behind barre ([claude-code.md](guides/claude-code.md)). |
+| 4. Repo access | The agent works with git and `gh` as a developer does, on the repos its instance names, as a GitHub App for its role: [repo-access.md](design/repo-access.md), configured by the instance: [instances.md](design/instances.md). | Done: the first ticket became #29, opened by the agent and merged by the human ([milestone](design/repo-access.md#milestone)). |
 | 5. barre G2: Credentials | barre adds the GitHub and model credentials on the way out, so the µVM holds no secret at all. | Not started. |
 | 6. Bus (mime) | The shim and the host bus, with channels and schemas from configuration. | Not started. |
 | 7. Control plane (regisseur) | The work repo, the workflow engine with its first rules, the GitHub connector, spawning on tickets. The first slice that runs without a human starting it. | Not started. |

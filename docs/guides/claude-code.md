@@ -70,8 +70,10 @@ With an instance ([instances.md](../design/instances.md)), the agent works on on
 2. Put its key on hemlock: apply `site.yml` (the `credentials` role), then
    `scripts/install-github-app NAME`. Check with
    `ssh hemlock 'sudo github-token NAME OWNER/REPO >/dev/null && echo ok'`.
-3. Protect the repo's `main`: changes only by pull request, with a code owner's review, and you the
-   only code owner.
+3. Protect the repo's `main` with a ruleset: restrict updates, with only Repository admin (you)
+   allowed to bypass, for pull requests; changes only by pull request, with a code owner's review;
+   you the only code owner. Restricting updates is what keeps merging yours: the App's permissions
+   let it approve and merge ([why](../design/repo-access.md#why-restricting-updates-not-only-reviews)).
 4. Make the instance: a directory, best a private repo of its own, outside this one, with an
    `instance.toml`:
 

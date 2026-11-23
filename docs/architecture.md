@@ -5,7 +5,8 @@ where things are stored. [PRINCIPLES.md](../PRINCIPLES.md) says what must hold; 
 pieces fit together to make it hold. Each tool gets its own design doc when we build it, like
 [jete.md](design/jete.md) and [barre.md](design/barre.md).
 
-jete and barre exist, and Claude Code runs in a VM behind them (steps 1 to 3 of the
+jete and barre exist, and Claude Code runs in a VM behind them, working on a repo as a GitHub App
+and delivering pull requests that the human merges (steps 1 to 4 of the
 [build order](build-order.md), which says what comes next). mime and regisseur are a starting
 design, to evolve as we build them.
 
