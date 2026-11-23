@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 # claude-vm: runs Claude Code in a VM behind barre, from the Mac.
 #
-#   scripts/claude-vm PROMPT             boot a VM and run PROMPT in it
-#   scripts/claude-vm --vm ID PROMPT     run PROMPT in a VM it booted before
+#   scripts/claude-vm [--role ROLE] [--repo OWNER/REPO] PROMPT
+#                                        boot a VM and run PROMPT in it
+#   scripts/claude-vm [...] --vm ID PROMPT
+#                                        run PROMPT in a VM it booted before
 #
-# The VM may reach api.anthropic.com and whatever CLAUDE_VM_ALLOW adds, as
-# barre rules. Claude Code runs there as the unprivileged user `agent`,
-# without permission prompts: the VM and barre are what contain it. The VM
-# is left running; prints its id at the end. Remove it with
-# `ssh hemlock sudo barre-vm rm ID`.
+# Without an instance, the VM may reach api.anthropic.com and whatever
+# CLAUDE_VM_ALLOW adds, as barre rules.
+#
+# With an instance (MD_INSTANCE, docs/design/instances.md), the agent works on
+# one of the instance's repos, in one of its roles: the VM may reach the role's
+# `allow` rules (and CLAUDE_VM_ALLOW's), and works on the repo with git and gh
+# as the role's GitHub App (docs/design/repo-access.md). The token is minted on
+# the host and written into the VM there, so it never reaches the Mac; it lasts
+# an hour, and is replaced every 50 minutes while Claude Code runs. Commits are
+# authored by the App's bot, naming the role and the VM. ROLE defaults to the
+# instance's only role, REPO to the first repo the role may work on.
+#
+# Claude Code runs as the unprivileged user `agent`, without permission
+# prompts: the VM and barre are what contain it. The VM is left running;
+# prints its id at the end. Remove it with `ssh hemlock sudo barre-vm rm ID`.
 #
 # The OAuth token (from `claude setup-token`, on your subscription) is read
 # from CLAUDE_TOKEN_FILE and sent over ssh's stdin into Claude Code's
@@ -20,24 +32,30 @@
 #   CLAUDE_TOKEN_FILE  default: ~/.config/machinesdancing/claude-token
 #   CLAUDE_VM_ALLOW    more barre rules, space-separated, e.g.
 #                      "github.com:22,443 *.githubusercontent.com"
+#   MD_INSTANCE        path of an instance's checkout, with instance.toml
 
 set -euo pipefail
 
 host=${JETE_HOST:-hemlock}
 token=${CLAUDE_TOKEN_FILE:-$HOME/.config/machinesdancing/claude-token}
+refresh=3000  # seconds between GitHub tokens; each lasts 3600
 
 usage() {
-  echo "usage: claude-vm [--vm ID] PROMPT" >&2
+  echo "usage: claude-vm [--role ROLE] [--repo OWNER/REPO] [--vm ID] PROMPT" >&2
   exit 2
 }
 
-id=""
-if [[ ${1:-} == --vm ]]; then
-  [[ $# -ge 2 ]] || usage
-  id=$2
+id="" role="" repo=""
+while [[ $# -gt 1 ]]; do
+  case $1 in
+    --vm) id=$2 ;;
+    --role) role=$2 ;;
+    --repo) repo=$2 ;;
+    *) usage ;;
+  esac
   shift 2
-fi
-[[ $# -eq 1 ]] || usage
+done
+[[ $# -eq 1 && $1 != --* ]] || usage
 prompt=$1
 
 if [[ ! -r $token || ! -s $token ]]; then
@@ -45,21 +63,101 @@ if [[ ! -r $token || ! -s $token ]]; then
   exit 1
 fi
 
-if [[ -z $id ]]; then
-  # Split on spaces only: a rule like *.example.com must not glob here.
-  read -ra extra <<<"${CLAUDE_VM_ALLOW:-}"
+# Split on spaces only: a rule like *.example.com must not glob here.
+read -ra extra <<<"${CLAUDE_VM_ALLOW:-}"
+app=""
+if [[ -n ${MD_INSTANCE:-} ]]; then
+  # The instance's choice of role, repo, App and rules, as shell assignments.
+  chosen=$(python3 - "$MD_INSTANCE/instance.toml" "$role" "$repo" <<'EOF'
+import shlex, sys, tomllib
+path, role, repo = sys.argv[1:]
+def fail(msg):
+    sys.exit(f"claude-vm: {path}: {msg}")
+try:
+    with open(path, "rb") as f:
+        inst = tomllib.load(f)
+except (OSError, tomllib.TOMLDecodeError) as e:
+    fail(e)
+roles = inst.get("roles", {})
+if not role:
+    if len(roles) != 1:
+        fail(f"choose a role with --role: {', '.join(roles) or 'none defined'}")
+    role = next(iter(roles))
+if role not in roles:
+    fail(f"no role {role}")
+r = roles[role]
+mine = []
+for entry in inst.get("repos", []):
+    url = entry.get("url", "")
+    prefix = "https://github.com/"
+    if not url.startswith(prefix) or url[len(prefix):].count("/") != 1:
+        fail(f"repo url must be https://github.com/OWNER/REPO: {url}")
+    if role in entry.get("roles", []):
+        mine.append(url[len(prefix):].removesuffix(".git"))
+if not repo:
+    if not mine:
+        fail(f"role {role} works on no repo")
+    repo = mine[0]
+elif repo not in mine:
+    fail(f"role {role} doesn't work on {repo}")
+if not r.get("github_app"):
+    fail(f"role {role} has no github_app")
+print(f"role={shlex.quote(role)} repo={shlex.quote(repo)} app={shlex.quote(r['github_app'])}")
+print("allow=(" + " ".join(shlex.quote(a) for a in r.get("allow", [])) + ")")
+EOF
+)
+  eval "$chosen"
+  rules=(${allow[@]+"${allow[@]}"} ${extra[@]+"${extra[@]}"})
+else
+  [[ -z $role && -z $repo ]] || { echo "claude-vm: --role and --repo need MD_INSTANCE" >&2; exit 2; }
   rules=(api.anthropic.com ${extra[@]+"${extra[@]}"})
+fi
+
+if [[ -z $id ]]; then
   id=$(ssh "$host" "sudo barre-vm run $(printf '%q ' "${rules[@]}")")
 fi
 
+author_name="" author_email=""
+if [[ -n $app ]]; then
+  # Mints the role's token on the host and writes it into the VM, replacing
+  # the last one at once (docs/design/repo-access.md). The token stays on the
+  # host: in a shell variable there, never on a command line.
+  write_token() {
+    ssh "$host" "t=\$(sudo github-token $(printf %q "$app") $(printf %q "$repo")) &&
+      printf '%s\n' \"\$t\" | sudo jete exec $(printf %q "$id") -- sh -c 'umask 077 &&
+        cat >/run/agent/github-token.new && chown agent:agent /run/agent/github-token.new &&
+        mv /run/agent/github-token.new /run/agent/github-token'" </dev/null
+  }
+  write_token
+  # sleep gets no output to inherit: left behind when the loop is killed, it
+  # mustn't hold this script's output open.
+  (while sleep "$refresh" </dev/null >/dev/null 2>&1; do
+    write_token || echo "claude-vm: couldn't refresh the GitHub token" >&2
+  done) &
+  refresher=$!
+  trap 'kill "$refresher" 2>/dev/null' EXIT
+
+  # The App's bot, as GitHub links commits to it, naming the role and the VM.
+  bot_id=$(curl -fsS "https://api.github.com/users/$app%5Bbot%5D" |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])')
+  author_name="$role (µVM $id)"
+  author_email="$bot_id+$app[bot]@users.noreply.github.com"
+  prompt="You work on https://github.com/$repo, with git and gh, which are signed in for it. Deliver changes as a pull request from a new branch; you can't merge.
+
+$prompt"
+fi
+
 # Runs in the VM, as `agent`: the token is the first line of stdin, with or
-# without a newline after it.
+# without a newline after it. $2 and $3 are the commit author, if any.
 inner='cd &&
   { IFS= read -r CLAUDE_CODE_OAUTH_TOKEN || [[ -n $CLAUDE_CODE_OAUTH_TOKEN ]]; } &&
   export CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_AUTOUPDATER=1 &&
+  if [[ -n $2 ]]; then
+    export GIT_AUTHOR_NAME=$2 GIT_COMMITTER_NAME=$2 GIT_AUTHOR_EMAIL=$3 GIT_COMMITTER_EMAIL=$3
+  fi &&
   exec claude -p --dangerously-skip-permissions "$1" </dev/null'
 status=0
-ssh "$host" "sudo jete exec $(printf %q "$id") -- runuser -u agent -- bash -c $(printf %q "$inner") claude-vm $(printf %q "$prompt")" <"$token" || status=$?
+ssh "$host" "sudo jete exec $(printf %q "$id") -- runuser -u agent -- bash -c $(printf %q "$inner") claude-vm $(printf '%q ' "$prompt" "$author_name" "$author_email")" <"$token" || status=$?
 
 if [[ $status -ne 0 ]]; then
   echo "claude-vm: failed with exit code $status" >&2
