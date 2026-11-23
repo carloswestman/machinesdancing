@@ -46,11 +46,4 @@ git over HTTPS fetches and pushes through it without change.
 
 ## Known gaps
 
-Small things that don't block a step, recorded so they're not forgotten:
-
-- **barre picks up a policy within half a second.** `barre-vm run` returns before that, so a
-  command run at once may be refused. The demos start with `sleep 1`. `barre-vm run` should wait
-  until barre has the policy loaded; this matters once tasks start without a human watching.
-- **The guest image has no Python.** Agents reach for `python3` for small edits; in #35 the edit
-  failed silently and the first push went without it. Add it to the image, or say in the prompt
-  preface that it isn't there.
+Small things that don't block a step, recorded so they're not forgotten. None open now.

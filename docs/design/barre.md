@@ -263,7 +263,9 @@ sudo barre-vm rm "$id"
 
 `barre-vm` (installed with barre in `/usr/local/bin`; source in
 `ansible/roles/barre/templates/barre-vm.j2`) runs `jete run --egress-proxy`, then `barre allow` with the VM's
-address; `barre-vm rm` revokes the policy and removes the VM. The control plane will do the same
+address, and returns once barre listens for the VM, so its policy is loaded and a command run at
+once isn't refused. If barre doesn't within 5 seconds, it removes the VM and fails. `barre-vm rm`
+revokes the policy and removes the VM. The control plane will do the same
 later.
 
 Done: `crates/barre/tests/vm.rs` checks the above with real VMs and barre running in the test, plus

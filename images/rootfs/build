@@ -37,8 +37,9 @@ barre_ca=${BARRE_CA:-/etc/barre/ca.crt}
 
 # systemd as init, udev for /dev, CA certificates for TLS, curl for HTTP
 # (agents need it, and the gateway's tests use it), git for the repos agents
-# work on. Everything else is added when something in the guest needs it.
-packages=systemd-sysv,udev,ca-certificates,curl,git
+# work on, Python because agents reach for it for small edits and scripts.
+# Everything else is added when something in the guest needs it.
+packages=systemd-sysv,udev,ca-certificates,curl,git,python3
 
 here=$(cd "$(dirname "$0")" && pwd)
 
