@@ -6,8 +6,8 @@ pieces fit together to make it hold. Each tool gets its own design doc when we b
 [jete.md](design/jete.md) and [barre.md](design/barre.md).
 
 jete and barre exist, and Claude Code runs in a VM behind them, working on a repo as a GitHub App
-and delivering pull requests that the human merges (steps 1 to 4 of the
-[build order](build-order.md), which says what comes next). mime and regisseur are a starting
+and delivering pull requests that the human merges, with barre setting its credentials so the VM
+holds none (steps 1 to 5 of the [build order](build-order.md), which says what comes next). mime and regisseur are a starting
 design, to evolve as we build them.
 
 ## What we are building
