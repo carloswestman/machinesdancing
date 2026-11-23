@@ -1,4 +1,5 @@
 # Every change to main needs a code owner's review, and the human is the
-# only code owner: an agent's approval never counts (docs/design/repo-access.md).
+# only code owner. What keeps merging the human's, though, is the ruleset on
+# main restricting updates to the human (docs/design/repo-access.md).
 # This file owns itself too, so changing who reviews needs that review.
 * @carloswestman

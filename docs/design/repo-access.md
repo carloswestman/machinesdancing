@@ -30,7 +30,7 @@ guardrail is the merge into `main`. An agent is trusted like a developer on the 
 |---|---|
 | Which repos | The GitHub App is installed on the instance's repos only. The host narrows each token further, to the one repo the task is on. |
 | What it may do there | The App's permissions: contents and pull requests, read and write. No administration and no `workflows`, so GitHub refuses a push that changes `.github/workflows/`, and the agent can't add CI that runs with the repo's secrets. |
-| No merging into `main` | A ruleset or branch protection on `main`: changes arrive only by pull request, with a code owner's approval, and the human is the only code owner. An agent's approval never counts. |
+| No merging into `main` | A ruleset on `main` that restricts updates to its bypass list, which is the human alone (as repository admin, for pull requests): nobody else can push to `main` or merge into it, whatever a pull request's approvals. Also: changes arrive only by pull request, with a code owner's approval, and the human is the only code owner. |
 | Where it can reach | barre: the role's `allow` rules in the instance include `github.com` and `api.github.com`. |
 | Who pushed | The token. The host mints it for the µVM's role; the agent doesn't choose it and holds no other. |
 | Which µVM wrote a commit | The commit author, set by the host (see [Identity](#identity)). |
@@ -110,9 +110,31 @@ If review isn't enough once agents run at the same time, commits can be signed b
 - GitHub won't show these commits as verified, since an App can't register keys. The check is a
   regisseur rule: each commit on a ticket's branch is signed by that ticket's µVM.
 
+### Why restricting updates, not only reviews
+
+The App needs pull-request write to open pull requests, and that permission also lets it approve
+and merge them; GitHub can't grant one without the others. Code-owner review alone doesn't stop
+it: GitHub doesn't ask a pull request's author for their own review, so on a pull request the human
+opened, the only code owner's review isn't required, and the agent's approval was enough to make it
+mergeable. With the agent able to push to the branch behind it, approve and merge, its code could
+reach `main` unreviewed. Restricting updates to the human closes that: merging is the human's act,
+not a consequence of approvals (principle 8).
+
 ## Milestone
 
 **Done when** a ticket on the instance's repo, started by hand, ends in a pull request opened by the
 worker App, with commits authored by its µVM, which the human reviews and merges; and, from inside
-that µVM, pushing to `main`, approving the pull request and pushing a change under
-`.github/workflows/` are each refused by GitHub.
+that µVM, pushing to `main` and pushing a change under `.github/workflows/` are refused by GitHub,
+and the agent's approval leaves a pull request blocked.
+
+**Done** (23 November 2026):
+
+- The first ticket, a "Try it" section for the README, became #29: opened by
+  `machinesdancing-worker[bot]`, its commit authored by `worker (µVM 64814eab)`, reviewed and
+  merged by the human. barre's log shows the µVM reached `api.anthropic.com`, `github.com` and
+  `api.github.com`, and nothing else.
+- From a µVM holding the App's token: a push to `main` was declined ("Changes must be made through
+  a pull request"); a branch adding `.github/workflows/check.yml` was refused ("without `workflows`
+  permission"); the agent's approval of a test pull request (#31) first made it mergeable, which
+  led to restricting updates, after which it showed blocked. The agent trying the merge itself
+  wasn't run: it's a merge into `main`, left to the human.
