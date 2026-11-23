@@ -1,0 +1,11 @@
+#!/bin/sh
+# gh, with the token the host keeps fresh in /run/agent/github-token, read on
+# every call (docs/design/repo-access.md). The real gh is in /usr/local/lib/gh.
+token=/run/agent/github-token
+if [ -z "${GH_TOKEN:-}" ] && [ -r "$token" ]; then
+  GH_TOKEN=$(cat "$token")
+  export GH_TOKEN
+fi
+GH_NO_UPDATE_NOTIFIER=1 GH_PROMPT_DISABLED=1
+export GH_NO_UPDATE_NOTIFIER GH_PROMPT_DISABLED
+exec /usr/local/lib/gh/bin/gh "$@"
