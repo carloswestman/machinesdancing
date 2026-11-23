@@ -59,7 +59,8 @@ The instance names credentials; the host holds their values.
 - **Where:** files on hemlock under `/etc/machinesdancing/credentials/<name>/`, readable only by
   root (and later by barre, for G2).
 - **Who puts them there:** the human, from outside both repos. Neither this repo nor the instance
-  holds a secret.
+  holds a secret. The `credentials` Ansible role makes the directory; for a GitHub App,
+  `scripts/install-github-app SLUG` copies the key from the Mac, over ssh's stdin.
 - **Who reads them:** the host, when it starts an agent: it mints what the agent needs from them
   (for GitHub, a token that lasts an hour). The agent never sees the long-lived secret.
 

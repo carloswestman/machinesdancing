@@ -32,6 +32,7 @@ ansible-playbook site.yml                               # apply
 ansible-playbook upgrade.yml                            # upgrade all packages, report if a reboot is needed
 ../scripts/install-jete                                 # build jete on the Mac, install it (jete.yml)
 ../scripts/install-barre                                # build barre on the Mac, install and run it (barre.yml)
+../scripts/install-github-app SLUG                      # copy a GitHub App's key to the host, after site.yml
 ```
 
 `site.yml` only applies configuration. It never upgrades packages; `upgrade.yml` does that, on

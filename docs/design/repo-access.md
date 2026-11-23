@@ -72,7 +72,8 @@ directory ([instances.md](instances.md#credentials)).
 1. The host reads the instance: the role, its App, its barre rules, the repo.
 2. It starts the µVM with the role's barre rules.
 3. It mints an installation token for the role's App, narrowed to the task's repo, from the App's
-   private key in `/etc/machinesdancing/credentials/` (the key never leaves the host).
+   private key in `/etc/machinesdancing/credentials/` (the key never leaves the host):
+   `sudo github-token APP OWNER/REPO`, installed by the `credentials` Ansible role, prints it.
 4. It writes the token into the µVM through jete-agent, over stdin, to a file on a memory-only
    filesystem (`/run`) that only the agent's user can read: never on a command line or a disk. git
    reads it through a credential helper in the guest image, and `gh` through a small wrapper that
@@ -115,7 +116,5 @@ that µVM, pushing to `main`, approving the pull request and pushing a change un
 
 ## Open questions
 
-1. **What mints the token.** A script on the host, or a small Rust tool. Either way it runs as
-   root, since it reads the App's key.
-2. **The guest's git setup.** The credential helper, `gh`, and the bot email are baked into the
+1. **The guest's git setup.** The credential helper, `gh`, and the bot email are baked into the
    guest image, or written into the µVM when the task starts.
