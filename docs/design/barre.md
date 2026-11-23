@@ -219,9 +219,10 @@ what goes in it, and keeps it fresh: `claude-vm` now (and regisseur later) write
 ### Building it
 
 TLS is rustls, with `ring` for cryptography. `ring` compiles C, and the Mac builds for
-`x86_64-unknown-linux-musl` with `rust-lld` alone, so the build gains a C cross compiler: zig,
-through `cargo-zigbuild` (`brew install zig`, `cargo install cargo-zigbuild`). Binaries stay
-static, built on the Mac, run on hemlock. A pure-Rust provider (RustCrypto's) was the alternative;
+`x86_64-unknown-linux-musl` with `rust-lld` alone, so the build gains a C cross compiler: zig
+(`brew install zig`), which `.cargo/config.toml` gives the C-building crates through
+`scripts/zig-cc` and `scripts/zig-ar`. Every cargo command stays as it was; binaries stay static,
+built on the Mac, run on hemlock. A pure-Rust provider (RustCrypto's) was the alternative;
 `ring` is the better tested.
 
 ### In the VM

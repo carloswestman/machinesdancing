@@ -5,7 +5,14 @@
 target = "x86_64-unknown-linux-musl"
 
 [target.x86_64-unknown-linux-musl]
-# rust-lld ships with Rust, so no cross toolchain is needed on the Mac.
+# rust-lld ships with Rust, so Rust needs no cross toolchain on the Mac. C that
+# crates build (ring, for barre's TLS) is compiled by zig, below.
 linker = "rust-lld"
 # `cargo test` and `cargo run` execute the binary on hemlock, which has KVM.
 runner = "scripts/hemlock-run"
+
+# The C compiler and archiver for the target, for crates that build C. zig
+# cross-compiles to musl from the Mac (brew install zig).
+[env]
+CC_x86_64_unknown_linux_musl = { value = "scripts/zig-cc", relative = true }
+AR_x86_64_unknown_linux_musl = { value = "scripts/zig-ar", relative = true }

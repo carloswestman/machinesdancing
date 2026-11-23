@@ -14,7 +14,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::{Semaphore, watch};
 
+use crate::ca::Ca;
+use crate::credentials;
 use crate::dns::{self, Answer};
+use crate::intercept::{self, Carry};
 use crate::peek::{self, Peek};
 use crate::policy::{self, Policy};
 use crate::rules::{self, Rules};
@@ -39,6 +42,11 @@ pub struct Config {
     /// The port VMs' traffic is redirected to (jete's `--egress-proxy`).
     pub port: u16,
     pub policies: PathBuf,
+    /// Where credentials are kept (see `credentials`).
+    pub credentials: PathBuf,
+    /// Signs certificates for names with credentials. Without it, those
+    /// names are refused.
+    pub ca: Option<Arc<Ca>>,
     /// Connections open at once, per VM.
     pub connections: usize,
     /// A connection with no traffic either way for this long is closed.
@@ -53,6 +61,8 @@ impl Config {
         Config {
             port,
             policies: PathBuf::from(policy::DIR),
+            credentials: PathBuf::from(credentials::DIR),
+            ca: None,
             connections: 256,
             idle: Duration::from_secs(600),
             handshake: Duration::from_secs(10),
@@ -245,7 +255,7 @@ async fn connection(config: &Config, vm: &Vm, mut client: TcpStream, peer: Socke
         return;
     };
     let decision = decide(config, vm, &mut client, peer, &mut line).await;
-    let (upstream, head) = match decision {
+    let (upstream, head, credential) = match decision {
         Ok(go) => go,
         Err(reason) => {
             line["decision"] = json!("refuse");
@@ -256,6 +266,16 @@ async fn connection(config: &Config, vm: &Vm, mut client: TcpStream, peer: Socke
         }
     };
     line["decision"] = json!("allow");
+    if let Some(credential) = credential {
+        line["credential"] = json!(credential);
+        vm.log(config, line.clone());
+        let why = carry(config, vm, client, head, upstream, &line, &credential).await;
+        line["event"] = json!("close");
+        line["ms"] = json!(started.elapsed().as_millis() as u64);
+        line["reason"] = json!(why);
+        vm.log(config, line);
+        return;
+    }
     vm.log(config, line.clone());
     let (up, down, why) = pipe(client, upstream, &head, config.idle).await;
     line["event"] = json!("close");
@@ -266,15 +286,53 @@ async fn connection(config: &Config, vm: &Vm, mut client: TcpStream, peer: Socke
     vm.log(config, line);
 }
 
-/// Where a connection may go: an open connection there, and the bytes
-/// already read from the client. Err is the reason it may not.
+/// Carries a connection to a name with a credential, through `intercept`:
+/// barre reads its requests and sets the credential's header.
+async fn carry(
+    config: &Config,
+    vm: &Vm,
+    client: TcpStream,
+    head: Vec<u8>,
+    upstream: TcpStream,
+    line: &Value,
+    credential: &str,
+) -> String {
+    let name = line["name"].as_str().unwrap_or_default().to_string();
+    let Some(ca) = &config.ca else {
+        return "no certificate authority: run barre ca init".into();
+    };
+    let tls = match ca.server_config(&name) {
+        Ok(t) => t,
+        Err(e) => return format!("can't make a certificate: {e}"),
+    };
+    let read = || credentials::read(&config.credentials, vm.addr, credential);
+    let log = |l: Value| vm.log(config, l);
+    intercept::carry(
+        Carry {
+            name: &name,
+            tls,
+            credential: &read,
+            log: &log,
+            handshake: config.handshake,
+            idle: config.idle,
+        },
+        client,
+        head,
+        upstream,
+    )
+    .await
+}
+
+/// Where a connection may go: an open connection there, the bytes already
+/// read from the client, and the credential to set on its requests, if its
+/// rule names one. Err is the reason it may not.
 async fn decide(
     config: &Config,
     vm: &Vm,
     client: &mut TcpStream,
     peer: SocketAddr,
     line: &mut Value,
-) -> Result<(TcpStream, Vec<u8>), String> {
+) -> Result<(TcpStream, Vec<u8>, Option<String>), String> {
     if peer.ip() != vm.guest() {
         line["peer"] = json!(peer);
         return Err("not from the VM's address".into());
@@ -292,7 +350,7 @@ async fn decide(
             return Err("no rule for this address and port".into());
         }
         let upstream = connect_to(&[dest], config.handshake).await?;
-        return Ok((upstream, Vec::new()));
+        return Ok((upstream, Vec::new(), None));
     }
 
     let name = vm
@@ -302,9 +360,13 @@ async fn decide(
         .name(ip)
         .ok_or("an address barre didn't give this VM")?;
     line["name"] = json!(name);
-    if !vm.rules.read().unwrap().allows(&name, port) {
-        return Err("name not allowed on this port".into());
-    }
+    let credential = {
+        let rules = vm.rules.read().unwrap();
+        if !rules.allows(&name, port) {
+            return Err("name not allowed on this port".into());
+        }
+        rules.credential(&name, port).map(str::to_string)
+    };
 
     // What the client says it wants must be the name it looked up.
     let head = match port {
@@ -349,7 +411,7 @@ async fn decide(
     }
     let upstream = connect_to(&public, config.handshake).await?;
     line["upstream"] = json!(upstream.peer_addr().ok());
-    Ok((upstream, head))
+    Ok((upstream, head, credential))
 }
 
 async fn connect_to(addrs: &[SocketAddrV4], timeout: Duration) -> Result<TcpStream, String> {

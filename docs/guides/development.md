@@ -15,8 +15,12 @@ works without a password; see [`ansible/README.md`](../../ansible/README.md)).
 1. **Install the tools:**
 
    ```bash
-   brew install rustup ansible gh
+   brew install rustup ansible gh zig
    ```
+
+   zig is the C compiler for the Linux target: barre's TLS library (`ring`) builds C, and
+   `.cargo/config.toml` points it at `scripts/zig-cc`. Rust itself links with `rust-lld`, which
+   comes with Rust.
 
 2. **Put rustup on your `PATH`.** Homebrew installs it outside the default path. Add this to
    `~/.zshrc`, then open a new shell:

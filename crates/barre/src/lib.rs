@@ -6,8 +6,15 @@
 //! VM's host-side address, where barre listens. barre answers DNS for allowed
 //! names with synthetic addresses, so a connection's original destination
 //! says which name it was made for, whatever the protocol.
+//!
+//! For names whose rule gives a credential, barre terminates TLS with a
+//! certificate from its own authority and sets the credential's header on
+//! each request, so the VM never holds it.
 
+pub mod ca;
+pub mod credentials;
 pub mod dns;
+pub mod intercept;
 pub mod peek;
 pub mod policy;
 pub mod rules;

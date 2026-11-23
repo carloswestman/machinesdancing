@@ -1,0 +1,17 @@
+#!/bin/sh
+# zig-cc: the C compiler for x86_64-unknown-linux-musl, for crates that build C
+# (ring, through rustls, in barre). .cargo/config.toml points cc at it; the
+# Mac has no other Linux C toolchain. Needs zig: brew install zig.
+#
+# cc-rs passes Rust's name for the target (--target=x86_64-unknown-linux-musl),
+# which zig doesn't parse; zig gets its own name for it instead. zig also
+# checks for undefined behaviour in unoptimized C, which needs a runtime that
+# rust-lld doesn't link, so that is off.
+for arg do
+  shift
+  case $arg in
+    --target=*) ;;
+    *) set -- "$@" "$arg" ;;
+  esac
+done
+exec zig cc -target x86_64-linux-musl -fno-sanitize=undefined "$@"

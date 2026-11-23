@@ -7,6 +7,10 @@
 //! - `*.githubusercontent.com`: its subdomains, at any depth, not the bare
 //!   name;
 //! - `140.82.112.0/20`: an address block, for clients that don't use DNS.
+//!
+//! An exact name may also name a credential, `api.example.com@token`, on
+//! port 443 only: barre then terminates TLS for that name and sets the
+//! credential's header on each request (see `credentials` and `intercept`).
 
 use std::fmt;
 use std::net::Ipv4Addr;
@@ -32,6 +36,7 @@ enum Target {
 pub struct Rule {
     target: Target,
     ports: Vec<u16>,
+    credential: Option<String>,
 }
 
 impl Rule {
@@ -58,7 +63,16 @@ impl FromStr for Rule {
 
     fn from_str(s: &str) -> Result<Rule, String> {
         let err = |why: &str| format!("bad rule {s:?}: {why}");
-        let (target, ports) = match s.rsplit_once(':') {
+        let (s_rule, credential) = match s.split_once('@') {
+            Some((rule, cred)) => {
+                if !is_credential_name(cred) {
+                    return Err(err("credentials are named with letters, digits, - and _"));
+                }
+                (rule, Some(cred.to_string()))
+            }
+            None => (s, None),
+        };
+        let (target, ports) = match s_rule.rsplit_once(':') {
             Some((target, ports)) => {
                 let ports = ports
                     .split(',')
@@ -69,7 +83,7 @@ impl FromStr for Rule {
                     .collect::<Result<Vec<u16>, String>>()?;
                 (target, ports)
             }
-            None => (s, vec![DEFAULT_PORT]),
+            None => (s_rule, vec![DEFAULT_PORT]),
         };
         let mut ports = ports;
         ports.sort_unstable();
@@ -84,7 +98,19 @@ impl FromStr for Rule {
         } else {
             Target::Name(normalize(target).ok_or_else(|| err("not a DNS name or address"))?)
         };
-        Ok(Rule { target, ports })
+        if credential.is_some() {
+            if !matches!(target, Target::Name(_)) {
+                return Err(err("only an exact name can have a credential"));
+            }
+            if ports != [DEFAULT_PORT] {
+                return Err(err("a name with a credential is reached on port 443 only"));
+            }
+        }
+        Ok(Rule {
+            target,
+            ports,
+            credential,
+        })
     }
 }
 
@@ -99,6 +125,9 @@ impl fmt::Display for Rule {
         if self.ports != [DEFAULT_PORT] {
             let ports: Vec<String> = self.ports.iter().map(u16::to_string).collect();
             write!(f, ":{}", ports.join(","))?;
+        }
+        if let Some(c) = &self.credential {
+            write!(f, "@{c}")?;
         }
         Ok(())
     }
@@ -135,12 +164,29 @@ impl Rules {
             .any(|r| r.matches_name(name) && r.ports.contains(&port))
     }
 
+    /// The credential to set on requests to `name` on `port`, if a rule
+    /// gives it one. Exact names only, so the first match is the only one
+    /// that can carry it.
+    pub fn credential(&self, name: &str, port: u16) -> Option<&str> {
+        self.0
+            .iter()
+            .filter(|r| r.matches_name(name) && r.ports.contains(&port))
+            .find_map(|r| r.credential.as_deref())
+    }
+
     /// Whether `ip` may be reached directly on `port`.
     pub fn allows_addr(&self, ip: Ipv4Addr, port: u16) -> bool {
         self.0
             .iter()
             .any(|r| r.matches_addr(ip) && r.ports.contains(&port))
     }
+}
+
+/// Whether `s` can name a credential: it becomes a file name.
+pub fn is_credential_name(s: &str) -> bool {
+    (1..=64).contains(&s.len())
+        && s.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 /// A DNS name in the form rules compare: lowercase, without a trailing dot.
@@ -228,6 +274,8 @@ mod tests {
             ("140.82.112.0/20:22", "140.82.112.0/20:22"),
             ("140.82.112.7/20", "140.82.112.0/20"),
             ("1.1.1.1", "1.1.1.1"),
+            ("API.anthropic.com@claude", "api.anthropic.com@claude"),
+            ("github.com:443@github-git", "github.com@github-git"),
         ] {
             assert_eq!(input.parse::<Rule>().unwrap().to_string(), printed);
         }
@@ -247,6 +295,13 @@ mod tests {
             "-github.com",
             "1.2.3.4/33",
             "a..b",
+            "github.com@",
+            "github.com@a/b",
+            "github.com@..",
+            "github.com:22@git",
+            "github.com:22,443@git",
+            "*.github.com@git",
+            "1.2.3.4@ip",
         ] {
             assert!(s.parse::<Rule>().is_err(), "{s:?} accepted");
         }
@@ -265,6 +320,16 @@ mod tests {
         assert!(!r.allows("xgithubusercontent.com", 443));
         assert!(r.allows_name("raw.githubusercontent.com"));
         assert!(!r.allows_name("example.com"));
+    }
+
+    #[test]
+    fn credentials_belong_to_their_name() {
+        let r = rules(&["api.github.com@github-api", "github.com", "*.github.com"]);
+        assert_eq!(r.credential("api.github.com", 443), Some("github-api"));
+        assert_eq!(r.credential("github.com", 443), None);
+        assert_eq!(r.credential("raw.github.com", 443), None);
+        assert_eq!(r.credential("api.github.com", 80), None);
+        assert!(r.allows("api.github.com", 443));
     }
 
     #[test]
