@@ -30,6 +30,55 @@ tools.
 | [docs/guides/claude-code.md](docs/guides/claude-code.md) | Running Claude Code in a VM behind barre, on your Claude subscription. |
 | [ansible/](ansible/) | Configuration of the hosts that run everything (currently hemlock). |
 
+## Try it
+
+From a fresh clone, on the Mac. The guides call the Linux host `hemlock`, so the commands below do
+too.
+
+1. **Set up the Mac and the host.** Install the tools as in
+   [development setup](docs/guides/development.md#mac-setup), then take over the host (an Ubuntu
+   Server install you can reach with `ssh-copy-id`, added to `ansible/inventory.yml`) and
+   configure it:
+
+   ```bash
+   cd ansible
+   ansible-galaxy collection install -r requirements.yml
+   ansible-playbook site.yml
+   cd ..
+   ```
+
+   See [ansible/README.md](ansible/README.md#taking-over-a-new-host).
+
+2. **Build the guest image and install jete.** The image is built on the host; jete is built on
+   the Mac and copied over:
+
+   ```bash
+   scripts/build-rootfs
+   scripts/install-jete
+   ```
+
+3. **Boot a µVM and run a command in it:**
+
+   ```bash
+   id=$(ssh hemlock sudo jete run)
+   ssh hemlock sudo jete exec $id -- uname -a
+   ssh hemlock sudo jete rm $id
+   ```
+
+   More in [running jete](docs/guides/development.md#running-jete).
+
+4. **Run Claude Code in a µVM behind barre.** Install barre, save a token for your Claude
+   subscription on the Mac (`claude setup-token`, then
+   `~/.config/machinesdancing/claude-token`), and run a prompt:
+
+   ```bash
+   scripts/install-barre
+   scripts/claude-vm "what is in your home directory?"
+   ```
+
+   The µVM may reach `api.anthropic.com` and nothing else. The token steps, letting it reach
+   more, and cleaning up are in [claude-code.md](docs/guides/claude-code.md).
+
 ## Security
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
