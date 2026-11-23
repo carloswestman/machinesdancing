@@ -85,6 +85,10 @@ too.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 [Apache License 2.0](LICENSE). Copyright 2026 Carlos Westman.
