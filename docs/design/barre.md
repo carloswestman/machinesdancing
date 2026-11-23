@@ -18,7 +18,8 @@ on and a barrier.
 - Pass allowed connections through to the name they were made for, on the ports the allowlist
   gives that name.
 - Log every DNS answer and connection, allowed or not.
-- Later: add credentials to requests for configured hosts.
+- From G2: add credentials to requests for the names a VM's policy says, so the VM never holds
+  them (see [G2: credentials](#g2-credentials)).
 
 **Does not**
 
@@ -26,7 +27,10 @@ on and a barrier.
   names, on these ports".
 - Create VMs or networks: jete does. barre doesn't read jete's state either; it's told what to
   allow.
-- Decrypt traffic in the first phase. Rules apply to whole hosts and ports, not URL paths.
+- Decrypt traffic, except for names a policy gives a credential (from G2). Rules apply to whole
+  hosts and ports, not URL paths.
+- Know what a credential is for. It adds a header it's given, to the names it's told; minting and
+  refreshing tokens is the host's job.
 
 ## Who owns what
 
@@ -137,7 +141,7 @@ On top of the name and port, barre checks the protocols it can read:
 | Refusals | A refused connection is closed at once, and logged with the reason. |
 | Logging | One JSON line per DNS query and per connection, to the journal: time, VM id and address, name, original destination, port, decision and reason, bytes each way, duration. |
 | Limits | Per VM: concurrent connections (default 256) and an idle timeout (default 10 minutes). A handshake or request that doesn't arrive within 10 seconds is dropped. |
-| Hardening | A dedicated `barre` user with no capabilities (its port is above 1024), plus systemd sandboxing: read-only filesystem, no new privileges, only IPv4 and Unix sockets, a system call filter. It holds no secrets in the first phase. |
+| Hardening | A dedicated `barre` user with no capabilities (its port is above 1024), plus systemd sandboxing: read-only filesystem, no new privileges, only IPv4 and Unix sockets, a system call filter. Until G2 it holds no secrets; from G2, the private key of its certificate authority and the credentials of running VMs, readable by it alone. |
 | Guest image | Adds `curl`, which agents need anyway, and the tests use to make real HTTPS requests. |
 
 ## Known limits
@@ -145,7 +149,7 @@ On top of the name and port, barre checks the protocols it can read:
 - **Shared hosting.** On 443, barre allows a connection by name, then passes bytes it can't read.
   A client can name an allowed host in the handshake and then ask the same server for a different
   site inside the encrypted stream ("domain fronting"). Some CDNs refuse this, others don't.
-  Closing it needs barre to decrypt, which phase 2 does only for hosts with credentials. For the
+  Closing it needs barre to decrypt, which G2 does only for names with credentials. For the
   rest, the risk is limited to sites served by the same provider as an allowed one.
 - **Encrypted Client Hello (ECH).** With ECH, the real name is encrypted and the handshake shows
   only the provider's public name. Clients need keys from DNS (`HTTPS` records) to use it, and barre
@@ -154,21 +158,85 @@ On top of the name and port, barre checks the protocols it can read:
   rule says where traffic may go, not what it is.
 - **UDP is DNS only.** Protocols that need other UDP don't work through barre.
 
-## Phase 2: credentials
+## G2: credentials
 
-For hosts that need credentials (the model API, GitHub), barre terminates TLS with a certificate
-from its own certificate authority, which the guest image trusts, adds the credential to each
-request (for example an `Authorization` or `x-api-key` header), and opens its own TLS connection to
-the real host. Policies name the credentials a VM may use, never their values. The values live on
-the host, readable only by barre, and come from outside the repo, like every secret. Every other
-host stays pass-through. This is designed in detail when we build it.
+The VM holds no secret: no model token, no GitHub token. For the names that need one, barre
+terminates the VM's TLS connection, sets the credential's header on each request, and makes its own
+TLS connection to the real host. The agent still uses the credential, through barre, toward the
+names its policy allows; what it can't do is read it, keep it, or take it anywhere else.
+
+### Policies name credentials
+
+A rule may name a credential after `@`:
+
+```bash
+sudo barre allow 10.200.0.5 --vm 3f2a9c1b \
+    api.anthropic.com@claude github.com@github-git api.github.com@github-api '*.githubusercontent.com'
+```
+
+`NAME[:PORTS]@CREDENTIAL`, for an exact name, on port 443 only. Names without `@` stay as in G1:
+passed through, unread. A credential is a header, set for one VM, by root, from stdin:
+
+```bash
+printf 'Authorization: Bearer %s\n' "$token" | sudo barre credential 10.200.0.5 claude
+sudo barre credential 10.200.0.5 claude --rm
+```
+
+It's a file in `/run/barre/credentials/<address>/<name>`, written by root, readable by barre alone,
+removed with the VM's policy. barre re-reads it on each change, like policies, so the host replaces
+a token that is about to expire without touching the VM.
+
+barre knows nothing about Anthropic or GitHub: it sets the header it's given. The host decides
+what goes in it, and keeps it fresh: `claude-vm` now (and regisseur later) writes
+`Authorization: Bearer <OAuth token>` for `api.anthropic.com`, `Authorization: Basic
+<x-access-token:App token>` for git on `github.com`, and `Authorization: Bearer <App token>` for
+`api.github.com`, replacing the GitHub ones every 50 minutes as today
+([repo-access.md](repo-access.md#how-a-task-gets-access)).
+
+### What barre does with those connections
+
+1. **Terminate TLS** with a certificate for the name, made on the fly and signed by barre's
+   certificate authority. Its ALPN offers HTTP/1.1 only, so every client speaks a protocol barre
+   reads one request at a time.
+2. **Check the name.** The SNI and each request's `Host` must be the rule's name. Anything else is
+   refused, which also closes domain fronting for these names.
+3. **Set the credential.** Remove every header the client sent with the credential's header name,
+   then add the credential's. Nothing the VM sends can choose or see the real value.
+4. **Forward** the request over barre's own TLS connection to the real host, verified against the
+   public certificate authorities, and stream the response back as it comes (model responses are
+   streamed).
+5. **Log each request:** method, host, path, status, bytes, duration. The header's value is never
+   logged.
+
+### The certificate authority
+
+| | |
+|---|---|
+| Where | Made once per host by `barre ca init`, run by Ansible: a key that never leaves the host (`/etc/barre/ca.key`, readable by barre alone) and its certificate (`/etc/barre/ca.crt`, public). |
+| Trusted by | The guest image: the build, which runs on the host, adds `ca.crt` to the system's trust store (curl, git and gh use it). Claude Code bundles its own list, and is pointed at the file with `NODE_EXTRA_CA_CERTS`. |
+| Scope | It signs a certificate only for a name a policy gives a credential, for that VM's connection. A VM can't make barre impersonate any other name. |
+
+### In the VM
+
+Programs still need something to send, or they refuse to start, so they get placeholders:
+`CLAUDE_CODE_OAUTH_TOKEN=placeholder`, a `GH_TOKEN` and a git credential helper with the same.
+barre replaces them on the way out. `/run/agent/github-token` goes away.
+
+### Known limits
+
+- **The agent can use what it can't hold.** Through barre, it can call the APIs its credentials
+  open, as far as their scope allows. G2 stops a token leaving the VM, not its use from inside;
+  narrow scopes (one repo, one hour) and the merge rule are what limit that.
+- **HTTP/1.1 only** for these names. Clients that insist on HTTP/2 won't connect. git, gh, curl and
+  Claude Code all fall back.
+- **A new certificate authority means a new image.** Rotating `ca.key` needs the guest image rebuilt.
 
 ## Milestones
 
 | | Goal | Done when |
 |---|---|---|
 | G1 ✓ | By name | A VM with `--egress-proxy` reaches allowed names, on allowed ports, and nothing else; every query and connection is logged; revoking a policy cuts the VM off. |
-| G2 | Credentials | A VM calls an API that needs a key without holding the key. |
+| G2 | Credentials | A VM runs Claude Code on a ticket, through to a pull request, with no secret in the VM: the Claude and GitHub tokens are set by barre. Searching the VM's memory-backed files and environment for either token finds nothing. Every request to those names is logged. |
 
 **G1 is done when**, on hemlock:
 
@@ -214,5 +282,15 @@ under its systemd sandbox, behind the installed jete.
 
 ## Open questions
 
-None for G1. Who calls `allow` and `revoke` before the control plane exists was settled as a
+1. **TLS in Rust, built on the Mac.** rustls needs a cryptography provider. `ring` and `aws-lc-rs`
+   compile C, which needs a C cross compiler for `x86_64-unknown-linux-musl` on the Mac (today the
+   build has none: `rust-lld` only). Options: add one (zig, through `cargo-zigbuild`), or a pure-Rust
+   provider (RustCrypto's, younger).
+2. **Claude Code and `NODE_EXTRA_CA_CERTS`.** Its native build is documented to honour it; check in
+   a VM first, since nothing else works without it.
+3. **git with an added `Authorization`.** git sends credentials only after a 401; with barre adding
+   them to every request, the first one succeeds. Check that fetch and push both work, and that a
+   placeholder helper is still needed.
+
+For G1, none. Who calls `allow` and `revoke` before the control plane exists was settled as a
 script, `barre-vm`, so jete stays unaware of the gateway.
