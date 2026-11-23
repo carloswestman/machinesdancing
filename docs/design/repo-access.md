@@ -69,7 +69,10 @@ directory ([instances.md](instances.md#credentials)).
 
 ## How a task gets access
 
-1. The host reads the instance: the role, its App, its barre rules, the repo.
+Today `scripts/claude-vm` does this, from the Mac, over ssh ([claude-code.md](../guides/claude-code.md#working-on-a-repo));
+later regisseur does, on the host.
+
+1. It reads the instance: the role, its App, its barre rules, the repo.
 2. It starts the µVM with the role's barre rules.
 3. It mints an installation token for the role's App, narrowed to the task's repo, from the App's
    private key in `/etc/machinesdancing/credentials/` (the key never leaves the host):
@@ -113,8 +116,3 @@ If review isn't enough once agents run at the same time, commits can be signed b
 worker App, with commits authored by its µVM, which the human reviews and merges; and, from inside
 that µVM, pushing to `main`, approving the pull request and pushing a change under
 `.github/workflows/` are each refused by GitHub.
-
-## Open questions
-
-1. **The guest's git setup.** The credential helper, `gh`, and the bot email are baked into the
-   guest image, or written into the µVM when the task starts.

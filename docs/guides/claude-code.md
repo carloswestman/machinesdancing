@@ -4,8 +4,8 @@ Claude Code runs in a jete VM on hemlock, behind barre, on your Claude subscript
 reach `api.anthropic.com` and whatever else you allow, by name, and nothing else. Every
 connection it makes, or is refused, is in barre's log.
 
-This is step 3 of the build order ([build-order.md](../build-order.md)): one agent,
-started by hand.
+This is steps 3 and 4 of the build order ([build-order.md](../build-order.md)): one agent,
+started by hand, working on a repo.
 
 ## What you need
 
@@ -59,6 +59,47 @@ sudo barre allow 10.200.0.5 --vm ID api.anthropic.com github.com:22,443
 Rules are `NAME`, `*.NAME` or `ADDRESS[/PREFIX]`, then optionally `:PORT[,PORT...]`; port 443 when
 none is given ([barre.md](../design/barre.md#policies)).
 
+## Working on a repo
+
+With an instance ([instances.md](../design/instances.md)), the agent works on one of its repos with
+`git` and `gh`, as the role's GitHub App, and delivers a pull request
+([repo-access.md](../design/repo-access.md)). Once:
+
+1. Create the role's App: `scripts/create-github-app NAME`, then install it on the repos the role
+   works on, and only those.
+2. Put its key on hemlock: apply `site.yml` (the `credentials` role), then
+   `scripts/install-github-app NAME`. Check with
+   `ssh hemlock 'sudo github-token NAME OWNER/REPO >/dev/null && echo ok'`.
+3. Protect the repo's `main`: changes only by pull request, with a code owner's review, and you the
+   only code owner.
+4. Make the instance: a directory, best a private repo of its own, outside this one, with an
+   `instance.toml`:
+
+```toml
+name = "mine"
+
+[roles.worker]
+github_app = "NAME"
+allow = ["api.anthropic.com", "github.com", "api.github.com", "*.githubusercontent.com"]
+
+[[repos]]
+url = "https://github.com/OWNER/REPO"
+roles = ["worker"]
+```
+
+Then:
+
+```bash
+export MD_INSTANCE=~/path/to/instance
+scripts/claude-vm "Fix the typo in README.md's first paragraph."
+scripts/claude-vm --role worker --repo OWNER/REPO "..."    # when there is more than one
+```
+
+`claude-vm` boots the VM with the role's `allow` rules, mints the App's token on hemlock and writes
+it into the VM there (it never reaches the Mac), and tells Claude Code which repo it works on and
+that its work goes in a pull request. The token lasts an hour; `claude-vm` replaces it every 50
+minutes while Claude Code runs. Commits are authored by the App's bot, as `ROLE (µVM ID)`.
+
 ## Seeing what it did
 
 ```bash
@@ -83,6 +124,7 @@ ssh hemlock sudo barre-vm rm ID      # removes its policy, then the VM
 
 - **Memory.** VMs get jete's default, 512 MiB, which is enough for short prompts. `barre-vm` has no
   way to ask for more yet.
-- **One prompt at a time, by hand.** No tickets, no bus, no control plane: those are steps 4 and 5.
+- **One prompt at a time, by hand.** No tickets, no bus, no control plane: those come later in
+  the [build order](../build-order.md).
 - **Subscription terms.** Your own agents, on your own machines, for your own work. Before VMs run
   work for anyone else, this moves to an API key added by barre.
