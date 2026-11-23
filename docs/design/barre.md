@@ -216,6 +216,14 @@ what goes in it, and keeps it fresh: `claude-vm` now (and regisseur later) write
 | Trusted by | The guest image: the build, which runs on the host, adds `ca.crt` to the system's trust store (curl, git and gh use it). Claude Code bundles its own list, and is pointed at the file with `NODE_EXTRA_CA_CERTS`. |
 | Scope | It signs a certificate only for a name a policy gives a credential, for that VM's connection. A VM can't make barre impersonate any other name. |
 
+### Building it
+
+TLS is rustls, with `ring` for cryptography. `ring` compiles C, and the Mac builds for
+`x86_64-unknown-linux-musl` with `rust-lld` alone, so the build gains a C cross compiler: zig,
+through `cargo-zigbuild` (`brew install zig`, `cargo install cargo-zigbuild`). Binaries stay
+static, built on the Mac, run on hemlock. A pure-Rust provider (RustCrypto's) was the alternative;
+`ring` is the better tested.
+
 ### In the VM
 
 Programs still need something to send, or they refuse to start, so they get placeholders:
@@ -282,13 +290,9 @@ under its systemd sandbox, behind the installed jete.
 
 ## Open questions
 
-1. **TLS in Rust, built on the Mac.** rustls needs a cryptography provider. `ring` and `aws-lc-rs`
-   compile C, which needs a C cross compiler for `x86_64-unknown-linux-musl` on the Mac (today the
-   build has none: `rust-lld` only). Options: add one (zig, through `cargo-zigbuild`), or a pure-Rust
-   provider (RustCrypto's, younger).
-2. **Claude Code and `NODE_EXTRA_CA_CERTS`.** Its native build is documented to honour it; check in
+1. **Claude Code and `NODE_EXTRA_CA_CERTS`.** Its native build is documented to honour it; check in
    a VM first, since nothing else works without it.
-3. **git with an added `Authorization`.** git sends credentials only after a 401; with barre adding
+2. **git with an added `Authorization`.** git sends credentials only after a 401; with barre adding
    them to every request, the first one succeeds. Check that fetch and push both work, and that a
    placeholder helper is still needed.
 
