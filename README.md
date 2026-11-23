@@ -47,7 +47,9 @@ too.
    cd ..
    ```
 
-   See [ansible/README.md](ansible/README.md#taking-over-a-new-host).
+   See [ansible/README.md](ansible/README.md#taking-over-a-new-host). On a new host, the first run
+   also needs a Tailscale auth key and `-K` for the `sudo` password:
+   [joining the tailnet](ansible/README.md#joining-a-host-to-the-tailnet).
 
 2. **Build the guest image and install jete.** The image is built on the host; jete is built on
    the Mac and copied over:
