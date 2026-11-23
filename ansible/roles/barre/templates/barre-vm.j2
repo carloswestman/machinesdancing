@@ -5,6 +5,7 @@
 # policy, and removes it with its policy. Run as root.
 #
 #   barre-vm run RULE...   boot a VM allowed to reach RULEs; prints its id
+#                          once barre has its policy loaded
 #   barre-vm rm ID         remove the VM and its policy
 #
 # Rules are barre's: NAME, *.NAME or ADDRESS[/PREFIX], then optionally
@@ -26,12 +27,28 @@ host_addr() {
   echo "${addr%/*}"
 }
 
+# Waits until barre listens on ADDR, which it does once it has loaded the
+# policy (it reads policies twice a second). Fails after 5 seconds.
+wait_listening() {
+  local i
+  for ((i = 0; i < 50; i++)); do
+    if [[ -n $(ss -Hltn "src = $1:$port") ]]; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  echo "barre-vm: barre isn't listening on $1:$port; is it running? (systemctl status barre)" >&2
+  return 1
+}
+
 case ${1:-} in
   run)
     shift
     id=$(jete run --egress-proxy "$port")
-    if ! barre allow "$(host_addr "$id")" --vm "$id" "$@"; then
-      jete rm "$id"
+    addr=$(host_addr "$id")
+    if ! barre allow "$addr" --vm "$id" "$@" || ! wait_listening "$addr"; then
+      barre revoke "$addr" >/dev/null 2>&1 || true
+      jete rm "$id" >/dev/null
       exit 1
     fi
     echo "$id"
