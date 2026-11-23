@@ -53,6 +53,19 @@ branch has commits from another ticket.
   deliberately, and review would see it.
 - **Not machine users.** GitHub's terms allow one free machine account per person; Apps scale to
   several roles, and their tokens are short-lived.
+- **Not fine-grained personal tokens.** They can be scoped like an App, but they act as the person
+  who made them: the agent's pull requests would be the human's own, which the human can't approve,
+  so the review rule couldn't hold. They also live up to a year and can't be narrowed per task.
+
+### Creating a role's App
+
+`scripts/create-github-app NAME [--org ORG]`, on the Mac. GitHub has no API to create an App
+outright, so the script uses GitHub's manifest flow: it opens GitHub's page with the App described
+(contents and pull requests, read and write; no webhook; installable only by its owner), the human
+clicks Create, and GitHub hands the App's id and private key back to the script. It saves them under
+`~/.config/machinesdancing/github-apps/<slug>/`, readable only by the human, and opens the page to
+install the App on the repos its role works on. The key then goes to the host's credentials
+directory ([instances.md](instances.md#credentials)).
 
 ## How a task gets access
 
