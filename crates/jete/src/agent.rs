@@ -122,8 +122,16 @@ where
     let result = async {
         loop {
             match proto::read_frame(&mut reader).await? {
-                Some(Frame::Stdout(data)) => stdout.write_all(&data).await?,
-                Some(Frame::Stderr(data)) => stderr.write_all(&data).await?,
+                // Flushed at once: stdout may be line-buffered, and a
+                // shell's prompt ends without a newline.
+                Some(Frame::Stdout(data)) => {
+                    stdout.write_all(&data).await?;
+                    stdout.flush().await?;
+                }
+                Some(Frame::Stderr(data)) => {
+                    stderr.write_all(&data).await?;
+                    stderr.flush().await?;
+                }
                 Some(Frame::Exit(status)) => {
                     stdout.flush().await?;
                     stderr.flush().await?;
