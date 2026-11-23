@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# install-github-app: copies a GitHub App's credential from the Mac to a VM
+# host, where github-token reads it.
+#
+#   scripts/install-github-app SLUG
+#
+# Reads ~/.config/machinesdancing/github-apps/SLUG/ (as create-github-app saved
+# it) and writes /etc/machinesdancing/credentials/SLUG/ on the host, root only.
+# The private key goes over ssh's stdin: never on a command line. Overwrites
+# what is there, so it also installs a new key after a rotation.
+#
+# Environment:
+#   JETE_HOST  SSH host (default: hemlock)
+
+set -euo pipefail
+
+host=${JETE_HOST:-hemlock}
+
+[[ $# -eq 1 && $1 =~ ^[A-Za-z0-9._-]+$ && $1 != .* ]] || { echo "usage: install-github-app SLUG" >&2; exit 2; }
+slug=$1
+src=$HOME/.config/machinesdancing/github-apps/$slug
+dest=/etc/machinesdancing/credentials/$slug
+
+for f in app.json private-key.pem; do
+  [[ -r $src/$f ]] || { echo "install-github-app: no $src/$f; create the App with scripts/create-github-app" >&2; exit 1; }
+done
+
+ssh "$host" "sudo test -d /etc/machinesdancing/credentials" ||
+  { echo "install-github-app: no /etc/machinesdancing/credentials on $host; apply site.yml first" >&2; exit 1; }
+for f in app.json private-key.pem; do
+  ssh "$host" "sudo sh -c 'umask 077 && mkdir -p $dest && cat >$dest/$f'" <"$src/$f"
+done
+echo "installed $slug on $host: $dest" >&2
