@@ -1,0 +1,4 @@
+# Every change to main needs a code owner's review, and the human is the
+# only code owner: an agent's approval never counts (docs/design/repo-access.md).
+# This file owns itself too, so changing who reviews needs that review.
+* @carloswestman
