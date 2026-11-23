@@ -1,0 +1,5 @@
+# git reaches GitHub with the token the host keeps fresh in
+# /run/agent/github-token; the agent holds no other credential
+# (docs/design/repo-access.md).
+[credential "https://github.com"]
+	helper = /usr/local/lib/machinesdancing/git-credential-github

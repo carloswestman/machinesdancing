@@ -17,6 +17,8 @@
 #   ROOTFS_MIRROR  Ubuntu archive (default: http://archive.ubuntu.com/ubuntu)
 #   CLAUDE_CODE_VERSION  Claude Code release to include: stable, latest or
 #                  a version number (default: stable)
+#   GH_VERSION     GitHub CLI release to include: latest or a version number
+#                  (default: latest)
 
 set -euo pipefail
 
@@ -27,11 +29,13 @@ size=${ROOTFS_SIZE:-2G}
 mirror=${ROOTFS_MIRROR:-http://archive.ubuntu.com/ubuntu}
 claude_version=${CLAUDE_CODE_VERSION:-stable}
 claude_releases=https://downloads.claude.ai/claude-code-releases
+gh_version=${GH_VERSION:-latest}
+gh_releases=https://github.com/cli/cli/releases
 
 # systemd as init, udev for /dev, CA certificates for TLS, curl for HTTP
-# (agents need it, and the gateway's tests use it). Everything else is added
-# when something in the guest needs it.
-packages=systemd-sysv,udev,ca-certificates,curl
+# (agents need it, and the gateway's tests use it), git for the repos agents
+# work on. Everything else is added when something in the guest needs it.
+packages=systemd-sysv,udev,ca-certificates,curl,git
 
 here=$(cd "$(dirname "$0")" && pwd)
 
@@ -65,6 +69,22 @@ curl -fsS -o "$work/claude" "$claude_releases/$claude_version/linux-x64/claude"
 echo "$claude_sum  $work/claude" | sha256sum --check --quiet
 chmod 0755 "$work/claude"
 
+# The GitHub CLI, from its release, checked against the release's checksums.
+# Installed in /usr/local/lib/gh; /usr/local/bin/gh (in the overlay) wraps it
+# to read the token the host writes to /run/agent (docs/design/repo-access.md).
+if [[ $gh_version == latest ]]; then
+  gh_version=$(curl -fsS -o /dev/null -w '%{redirect_url}' "$gh_releases/latest")
+  gh_version=${gh_version##*/v}
+fi
+gh_tar=gh_${gh_version}_linux_amd64.tar.gz
+curl -fsSL -o "$work/$gh_tar" "$gh_releases/download/v$gh_version/$gh_tar"
+gh_sum=$(curl -fsSL "$gh_releases/download/v$gh_version/gh_${gh_version}_checksums.txt" |
+  awk -v f="$gh_tar" '$2 == f { print $1 }')
+[[ -n $gh_sum ]] || { echo "build: no checksum for $gh_tar" >&2; exit 1; }
+echo "$gh_sum  $work/$gh_tar" | sha256sum --check --quiet
+mkdir "$work/gh"
+tar -C "$work/gh" --strip-components=1 -xzf "$work/$gh_tar"
+
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 name=ubuntu-$version-$stamp
 
@@ -75,6 +95,7 @@ mmdebstrap \
   --customize-hook="sync-in '$here/overlay' /" \
   --customize-hook="copy-in '$here/jete-agent' /usr/local/bin" \
   --customize-hook="copy-in '$work/claude' /usr/local/bin" \
+  --customize-hook="copy-in '$work/gh' /usr/local/lib" \
   --customize-hook='chroot "$1" systemctl enable jete-agent.service' \
   --customize-hook='chroot "$1" useradd --create-home --shell /bin/bash agent' \
   --customize-hook='chroot "$1" passwd --lock root' \
@@ -83,6 +104,7 @@ mmdebstrap \
   "$suite" "$work/rootfs" "$mirror"
 echo "jete-agent sha256:$(sha256sum "$here/jete-agent" | cut -d' ' -f1)" >> "$work/$name.manifest"
 echo "claude-code $claude_version sha256:$claude_sum" >> "$work/$name.manifest"
+echo "gh $gh_version sha256:$gh_sum" >> "$work/$name.manifest"
 
 # The guest kernel configures the network from jete's boot line (ip=...) and
 # writes the resolver it was given to /proc/net/pnp, in resolv.conf format.
