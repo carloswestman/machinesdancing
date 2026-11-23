@@ -31,14 +31,21 @@ scripts/claude-vm "what is in your home directory?"   # boots a VM; prints its i
 scripts/claude-vm --vm ID "and now?"                  # the same VM again: files it wrote are still there
 ```
 
-`claude-vm` boots the VM with `barre-vm run api.anthropic.com`, then runs
+`claude-vm` boots the VM with `barre-vm run api.anthropic.com@claude`, gives barre your token as
+the credential `claude`, then runs
 `claude -p --dangerously-skip-permissions PROMPT` in it as `agent`. There are no permission
 prompts: the VM and barre are what contain it, not Claude Code's own checks.
 
-The token goes over ssh's stdin into Claude Code's environment. It is never on a command line, and
-never written to hemlock or to the VM's disk. It is, though, inside the VM while Claude Code runs,
-so anything in the VM could read it and use it, toward the names the VM may reach. Keeping
-credentials out of VMs entirely is barre's G2 ([barre.md](../design/barre.md#g2-credentials)).
+The token never enters the VM. It goes over ssh's stdin to barre's credentials on hemlock (in
+`/run`, memory only, readable by barre alone), never on a command line. Claude Code in the VM holds
+a placeholder; barre terminates its TLS to `api.anthropic.com` with a certificate from its own
+authority, which the guest image trusts, and sets the real token on each request
+([barre.md](../design/barre.md#g2-credentials)). Anything in the VM can still use the token,
+through barre, toward `api.anthropic.com`; nothing in it can read it or take it elsewhere.
+
+That needs barre's certificate authority in the guest image: install barre
+(`scripts/install-barre`, which makes it once) before building the image (`scripts/build-rootfs`,
+which stops without it), and rebuild the image if the authority is ever made anew.
 
 ## Letting it reach more
 
@@ -82,7 +89,7 @@ name = "mine"
 
 [roles.worker]
 github_app = "NAME"
-allow = ["api.anthropic.com", "github.com", "api.github.com", "*.githubusercontent.com"]
+allow = ["api.anthropic.com@claude", "github.com@github-git", "api.github.com@github-api", "*.githubusercontent.com"]
 
 [[repos]]
 url = "https://github.com/OWNER/REPO"
@@ -97,10 +104,12 @@ scripts/claude-vm "Fix the typo in README.md's first paragraph."
 scripts/claude-vm --role worker --repo OWNER/REPO "..."    # when there is more than one
 ```
 
-`claude-vm` boots the VM with the role's `allow` rules, mints the App's token on hemlock and writes
-it into the VM there (it never reaches the Mac), and tells Claude Code which repo it works on and
-that its work goes in a pull request. The token lasts an hour; `claude-vm` replaces it every 50
-minutes while Claude Code runs. Commits are authored by the App's bot, as `ROLE (µVM ID)`.
+The rules name the credentials `claude-vm` gives barre: `claude`, `github-git` and `github-api`;
+it stops if one is missing. `claude-vm` boots the VM with the role's `allow` rules, mints the App's
+token on hemlock and gives it to barre there (it never reaches the Mac, nor the VM), and tells
+Claude Code which repo it works on and that its work goes in a pull request. The token lasts an
+hour; `claude-vm` replaces it every 50 minutes while Claude Code runs. Commits are authored by the
+App's bot, as `ROLE (µVM ID)`.
 
 ## Seeing what it did
 

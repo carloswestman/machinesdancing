@@ -235,3 +235,88 @@ async fn policies_stay_with_their_vm() {
 
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// A name whose rule gives a credential: barre terminates TLS with its own
+/// authority's certificate, and sets the credential on each request, over
+/// whatever the VM sent. postman-echo.com answers with the headers it got.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs root, jete's network and internet; see the file comment"]
+async fn barre_sets_credentials_the_vm_never_holds() {
+    const PORT: u16 = 47013;
+    let _serial = SERIAL.lock().await;
+    let (_, dir, log) = barre(PORT, "credentials");
+    let (creds, ca_dir) = (dir.join("credentials"), dir.join("ca"));
+    std::fs::create_dir_all(&creds).unwrap();
+    std::fs::create_dir_all(&ca_dir).unwrap();
+    barre::ca::init(&ca_dir).unwrap();
+    let sink = log.clone();
+    let mut barre = Server::new(Config {
+        policies: dir.clone(),
+        credentials: creds.clone(),
+        ca: Some(Arc::new(barre::ca::Ca::load(&ca_dir).unwrap())),
+        log: Arc::new(move |line| {
+            eprintln!("barre: {line}");
+            sink.lock().unwrap().push(line);
+        }),
+        ..Config::new(PORT)
+    });
+    let guard = start(PORT).await;
+    let vm = &guard.0;
+    allow(&dir, &guard, &["postman-echo.com@echo", "example.com"]);
+    barre::credentials::write(
+        &creds,
+        guard.addr(),
+        "echo",
+        b"Authorization: Bearer from-barre\n",
+    )
+    .unwrap();
+    barre.reconcile().await;
+    let ca = std::fs::read_to_string(ca_dir.join("ca.crt")).unwrap();
+    exec(vm, &format!("cat > /tmp/ca.crt <<'EOF'\n{ca}EOF")).await;
+
+    // The VM's own Authorization is replaced by the credential.
+    let (code, body) = exec(
+        vm,
+        "curl -sS --max-time 10 --cacert /tmp/ca.crt -H 'Authorization: Bearer from-vm' https://postman-echo.com/headers",
+    )
+    .await;
+    assert_eq!(code, 0, "{body}");
+    assert!(body.contains("Bearer from-barre"), "{body}");
+    assert!(!body.contains("from-vm"), "{body}");
+
+    // A replaced value is used at once.
+    barre::credentials::write(&creds, guard.addr(), "echo", b"Authorization: Bearer second").unwrap();
+    let (_, body) = exec(vm, "curl -sS --max-time 10 --cacert /tmp/ca.crt https://postman-echo.com/headers").await;
+    assert!(body.contains("Bearer second"), "{body}");
+
+    // Without barre's authority, the certificate isn't trusted; a name
+    // without a credential is still passed through, with its real one.
+    assert_eq!(curl(vm, "https://postman-echo.com/headers").await, Err(60));
+    assert_eq!(curl(vm, "https://example.com").await, Ok("200".into()));
+
+    // A request for another host over the same TLS name is refused.
+    assert_eq!(
+        curl(vm, "--cacert /tmp/ca.crt -H 'Host: example.com' https://postman-echo.com/").await,
+        Ok("421".into())
+    );
+    assert!(refused(&log, "postman-echo.com", "isn't postman-echo.com"));
+
+    // No credential on disk: the request is refused, not sent bare.
+    barre::credentials::remove(&creds, guard.addr(), "echo").unwrap();
+    assert_eq!(
+        curl(vm, "--cacert /tmp/ca.crt https://postman-echo.com/headers").await,
+        Ok("502".into())
+    );
+
+    // Each request is logged, and no value ever is.
+    let lines = log.lock().unwrap().clone();
+    assert!(
+        lines
+            .iter()
+            .any(|l| l["event"] == "request" && l["status"] == 200 && l["path"] == "/headers")
+    );
+    let all: String = lines.iter().map(Value::to_string).collect();
+    assert!(!all.contains("from-barre") && !all.contains("second"), "a credential in the log");
+
+    std::fs::remove_dir_all(dir).unwrap();
+}

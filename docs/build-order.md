@@ -14,7 +14,7 @@ harness can work on other repos later ([instances.md](design/instances.md)).
 | 2. barre G1: By name | The egress gateway: allowlist by name and port, logging. | Done. |
 | 3. One agent in a µVM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through barre, doing a task started by hand. | Done: Claude Code in the guest image, behind barre ([claude-code.md](guides/claude-code.md)). |
 | 4. Repo access | The agent works with git and `gh` as a developer does, on the repos its instance names, as a GitHub App for its role: [repo-access.md](design/repo-access.md), configured by the instance: [instances.md](design/instances.md). | Done: the first ticket became #29, opened by the agent and merged by the human ([milestone](design/repo-access.md#milestone)). |
-| 5. barre G2: Credentials | barre adds the GitHub and model credentials on the way out, so the µVM holds no secret at all. | Not started. |
+| 5. barre G2: Credentials | barre adds the GitHub and model credentials on the way out, so the µVM holds no secret at all. | Done: the Claude and GitHub tokens are set by barre; a ticket became #35 with neither in the µVM ([milestone](design/barre.md#milestones)). |
 | 6. Bus (mime) | The shim and the host bus, with channels and schemas from configuration. | Not started. |
 | 7. Control plane (regisseur) | The work repo, the workflow engine with its first rules, the GitHub connector, spawning on tickets. The first slice that runs without a human starting it. | Not started. |
 | 8. Widening | More rules, the Jira connector, a skills disk, jete's daemon and speed (snapshots, a warm pool) when spawning on demand needs them. | Not started. |
@@ -39,11 +39,10 @@ the agent does takes effect before the human acts:
 
 ## Step 5: barre G2
 
-After step 4 the µVM holds two secrets: the Claude token and the GitHub token. With G2 barre adds
-credentials to requests to the hosts that need them, and the µVM holds none
-([barre.md](design/barre.md#milestones)). Two things to check when we build it: whether a
-subscription token can be added this way, or only an API key, and how git over HTTPS behaves
-through it.
+Done. The µVM holds no secret: barre sets the Claude token and the GitHub App's token on requests
+to the names whose rules give them ([barre.md](design/barre.md#g2-credentials)). The two questions
+it left open are answered: a subscription token is added this way like an API key would be, and
+git over HTTPS fetches and pushes through it without change.
 
 ## Known gaps
 
@@ -52,3 +51,6 @@ Small things that don't block a step, recorded so they're not forgotten:
 - **barre picks up a policy within half a second.** `barre-vm run` returns before that, so a
   command run at once may be refused. The demos start with `sleep 1`. `barre-vm run` should wait
   until barre has the policy loaded; this matters once tasks start without a human watching.
+- **The guest image has no Python.** Agents reach for `python3` for small edits; in #35 the edit
+  failed silently and the first push went without it. Add it to the image, or say in the prompt
+  preface that it isn't there.

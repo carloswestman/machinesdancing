@@ -18,8 +18,8 @@ the instance's configuration ([instances.md](instances.md)).
 
 - Wrap git in a tool of our own. The agent knows git; a wrapper would cost tokens and add nothing.
 - Let an agent merge into `main`. Only the human does (principle 8).
-- Teach barre about git or GitHub's API. barre allows names and ports and, from G2, adds
-  credentials. It doesn't read requests.
+- Teach barre about git or GitHub's API. barre allows names and ports, and sets the header it's
+  given on requests to the names that carry a credential; it doesn't know what they mean.
 
 ## Trust model
 
@@ -77,24 +77,24 @@ later regisseur does, on the host.
 3. It mints an installation token for the role's App, narrowed to the task's repo, from the App's
    private key in `/etc/machinesdancing/credentials/` (the key never leaves the host):
    `sudo github-token APP OWNER/REPO`, installed by the `credentials` Ansible role, prints it.
-4. It writes the token into the µVM through jete-agent, over stdin, to a file on a memory-only
-   filesystem (`/run`) that only the agent's user can read: never on a command line or a disk. git
-   reads it through a credential helper in the guest image, and `gh` through a small wrapper that
-   sets `GH_TOKEN` from it on each call.
-5. The agent clones, branches, commits, pushes and opens its pull request.
+4. It gives the token to barre, not to the µVM ([barre.md](barre.md#g2-credentials)): as
+   `Authorization: Basic` (`x-access-token` and the token) for git on `github.com`, and
+   `Authorization: Bearer` for the API on `api.github.com`, with `barre credential`, over stdin:
+   never on a command line. The role's rules name them, `github.com@github-git` and
+   `api.github.com@github-api`, and barre sets them on every request to those names.
+5. The agent clones, branches, commits, pushes and opens its pull request with `git` and `gh`, which
+   hold placeholders: git through a credential helper in the guest image, `gh` through a small
+   wrapper that sets `GH_TOKEN`.
 
 GitHub fixes an installation token's life at one hour, and it can't be extended; a new one can be
-minted at any time. So, for a task longer than that, the host writes a fresh token into the same
-file every 50 minutes, the same way. A file and not an environment variable, because a running
-process can't be given a new environment.
-
-From G2 the µVM holds no token: barre mints fresh ones as they expire and adds them to requests to
-`github.com` and `api.github.com`, and the hour no longer concerns the agent.
+minted at any time. So, for a task longer than that, the host gives barre a fresh token every 50
+minutes, the same way; barre reads it on each request, and the agent notices nothing.
 
 ## Known limits
 
-- **Until G2, the µVM holds a token.** It's narrowed to one repo and expires within an hour; a
-  leaked one is soon useless. The host keeps the µVM's copy fresh.
+- **The agent can use the token it can't hold.** Through barre, toward `github.com` and
+  `api.github.com`, as far as the token's scope allows: one repo, contents and pull requests, an
+  hour at a time. The merge rule is what keeps that from reaching `main`.
 - **Agents in one role share an identity.** GitHub can't tell whether worker A pushed to ticket B's
   branch; only the commit author says so, and the agent can change it. Review covers this for now.
 

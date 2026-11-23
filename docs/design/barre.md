@@ -219,16 +219,18 @@ what goes in it, and keeps it fresh: `claude-vm` now (and regisseur later) write
 ### Building it
 
 TLS is rustls, with `ring` for cryptography. `ring` compiles C, and the Mac builds for
-`x86_64-unknown-linux-musl` with `rust-lld` alone, so the build gains a C cross compiler: zig,
-through `cargo-zigbuild` (`brew install zig`, `cargo install cargo-zigbuild`). Binaries stay
-static, built on the Mac, run on hemlock. A pure-Rust provider (RustCrypto's) was the alternative;
+`x86_64-unknown-linux-musl` with `rust-lld` alone, so the build gains a C cross compiler: zig
+(`brew install zig`), which `.cargo/config.toml` gives the C-building crates through
+`scripts/zig-cc` and `scripts/zig-ar`. Every cargo command stays as it was; binaries stay static,
+built on the Mac, run on hemlock. A pure-Rust provider (RustCrypto's) was the alternative;
 `ring` is the better tested.
 
 ### In the VM
 
 Programs still need something to send, or they refuse to start, so they get placeholders:
-`CLAUDE_CODE_OAUTH_TOKEN=placeholder`, a `GH_TOKEN` and a git credential helper with the same.
-barre replaces them on the way out. `/run/agent/github-token` goes away.
+`CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-placeholder-barre-sets-the-real-one`, `GH_TOKEN=placeholder`,
+and a git credential helper answering `x-access-token` and `placeholder`. barre replaces them on
+the way out. `/run/agent/github-token` is gone.
 
 ### Known limits
 
@@ -244,7 +246,7 @@ barre replaces them on the way out. `/run/agent/github-token` goes away.
 | | Goal | Done when |
 |---|---|---|
 | G1 ✓ | By name | A VM with `--egress-proxy` reaches allowed names, on allowed ports, and nothing else; every query and connection is logged; revoking a policy cuts the VM off. |
-| G2 | Credentials | A VM runs Claude Code on a ticket, through to a pull request, with no secret in the VM: the Claude and GitHub tokens are set by barre. Searching the VM's memory-backed files and environment for either token finds nothing. Every request to those names is logged. |
+| G2 ✓ | Credentials | A VM runs Claude Code on a ticket, through to a pull request, with no secret in the VM: the Claude and GitHub tokens are set by barre. Searching the VM's memory-backed files and environment for either token finds nothing. Every request to those names is logged. |
 
 **G1 is done when**, on hemlock:
 
@@ -270,6 +272,17 @@ address barre never gave out, one VM using another's synthetic address, and a ne
 removed VM's address. Every case is logged with its reason. The service also ran once on hemlock
 under its systemd sandbox, behind the installed jete.
 
+**G2 is done:** a ticket, written as for a person, ran in a VM through `claude-vm` and the
+instance, and became a pull request (#35) opened by the role's App, its commits authored by the
+role. barre set the Claude token on every request to `api.anthropic.com` and the App's token on
+every one to `github.com` (fetch and two pushes) and `api.github.com` (`gh`). Afterwards, searching
+the VM's files (`/home`, `/root`, `/run`, `/tmp`, `/etc`, `/var`) and every process's environment
+for either token found nothing but placeholders; `/run/agent` no longer exists. barre logged each
+request with its method, path and status, and no value. `crates/barre/tests/vm.rs` checks the
+rest with real VMs: the VM's own header replaced, a new value used at once, the certificate
+untrusted without barre's authority, a request for another host refused (421), a missing
+credential refused (502) rather than sent bare.
+
 ## Tests
 
 - **jete, on hemlock, with a stand-in listener instead of barre:** with `--egress-proxy`, TCP to
@@ -290,11 +303,13 @@ under its systemd sandbox, behind the installed jete.
 
 ## Open questions
 
-1. **Claude Code and `NODE_EXTRA_CA_CERTS`.** Its native build is documented to honour it; check in
-   a VM first, since nothing else works without it.
-2. **git with an added `Authorization`.** git sends credentials only after a 401; with barre adding
-   them to every request, the first one succeeds. Check that fetch and push both work, and that a
-   placeholder helper is still needed.
+None open for G2. Both checked in a VM on hemlock:
+
+1. **Claude Code and `NODE_EXTRA_CA_CERTS`.** It works: Claude Code (2.1.323) trusts barre's
+   certificate for `api.anthropic.com` with the variable pointing at the system bundle.
+2. **git with an added `Authorization`.** Fetch and push both work: barre sets the header on the
+   first request, so git never sees a 401. The placeholder helper stays, so that git would fail
+   rather than prompt if one ever came; running without it wasn't tried.
 
 For G1, none. Who calls `allow` and `revoke` before the control plane exists was settled as a
 script, `barre-vm`, so jete stays unaware of the gateway.

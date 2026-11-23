@@ -1,11 +1,7 @@
 #!/bin/sh
-# gh, with the token the host keeps fresh in /run/agent/github-token, read on
-# every call (docs/design/repo-access.md). The real gh is in /usr/local/lib/gh.
-token=/run/agent/github-token
-if [ -z "${GH_TOKEN:-}" ] && [ -r "$token" ]; then
-  GH_TOKEN=$(cat "$token")
-  export GH_TOKEN
-fi
-GH_NO_UPDATE_NOTIFIER=1 GH_PROMPT_DISABLED=1
-export GH_NO_UPDATE_NOTIFIER GH_PROMPT_DISABLED
+# gh, with a placeholder token: barre sets the real one on every request to
+# api.github.com (docs/design/barre.md, G2), so the VM holds none. The real gh
+# is in /usr/local/lib/gh.
+GH_TOKEN=${GH_TOKEN:-placeholder} GH_NO_UPDATE_NOTIFIER=1 GH_PROMPT_DISABLED=1
+export GH_TOKEN GH_NO_UPDATE_NOTIFIER GH_PROMPT_DISABLED
 exec /usr/local/lib/gh/bin/gh "$@"
