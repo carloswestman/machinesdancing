@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""create-github-app: creates a GitHub App for one agent role, from the Mac.
+
+  scripts/create-github-app NAME [--org ORG] [--out DIR]
+
+GitHub has no API (and gh no command) to create an App outright. This uses
+GitHub's manifest flow: it opens a browser page with the App described, you
+click Create, and GitHub hands the App's id and private key back to this
+script, which saves them. Then it opens the page where you install the App on
+the repos its role works on.
+
+The App gets what repo-access needs (docs/design/repo-access.md): contents and
+pull requests, read and write, and nothing else; no webhook; installable only
+on the account that owns it.
+
+Saved, readable only by you, under DIR (default
+~/.config/machinesdancing/github-apps/<slug>/):
+  private-key.pem   the App's private key: the long-lived secret. It goes to
+                    the host's credentials directory, never into a repo.
+  app.json          the App's id, slug and owner; no secrets.
+"""
+
+import argparse
+import html
+import http.server
+import json
+import os
+import secrets
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+PROJECT_URL = "https://github.com/carloswestman/machinesdancing"
+TIMEOUT = 600  # seconds to wait for the Create click
+
+
+def manifest(name, redirect_url):
+    return {
+        "name": name,
+        "url": PROJECT_URL,
+        "redirect_url": redirect_url,
+        "public": False,
+        "default_permissions": {
+            "contents": "write",
+            "pull_requests": "write",
+            "metadata": "read",
+        },
+        "default_events": [],
+    }
+
+
+def wait_for_code(name, org):
+    """Serves the form that starts the flow, and returns the code GitHub redirects back with."""
+    state = secrets.token_urlsafe(24)
+    result = {}
+
+    if org:
+        action = f"https://github.com/organizations/{urllib.parse.quote(org)}/settings/apps/new"
+    else:
+        action = "https://github.com/settings/apps/new"
+    action += "?state=" + state
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def reply(self, body):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body.encode())
+
+        def do_GET(self):
+            url = urllib.parse.urlparse(self.path)
+            if url.path == "/":
+                m = json.dumps(manifest(name, redirect_url))
+                self.reply(
+                    f'<form id="f" method="post" action="{html.escape(action)}">'
+                    f'<input type="hidden" name="manifest" value="{html.escape(m)}">'
+                    "</form><script>document.getElementById('f').submit()</script>"
+                )
+            elif url.path == "/callback":
+                q = urllib.parse.parse_qs(url.query)
+                if q.get("state") != [state] or "code" not in q:
+                    self.reply("<p>Unexpected callback; ignored.</p>")
+                    return
+                result["code"] = q["code"][0]
+                self.reply("<p>App created. You can close this tab.</p>")
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    server.timeout = TIMEOUT
+    redirect_url = f"http://127.0.0.1:{server.server_port}/callback"
+    start = f"http://127.0.0.1:{server.server_port}/"
+
+    print(f"Opening {start}: check the App on GitHub's page and click Create.", file=sys.stderr)
+    subprocess.run(["open", start], check=False)
+    timed_out = []
+    server.handle_timeout = lambda: timed_out.append(True)
+    while "code" not in result and not timed_out:
+        server.handle_request()  # one request, or TIMEOUT seconds without one
+    server.server_close()
+    if "code" not in result:
+        sys.exit("create-github-app: timed out waiting for GitHub")
+    return result["code"]
+
+
+def convert(code):
+    """Exchanges the code for the App's credentials. The endpoint needs no auth; the code is single-use."""
+    req = urllib.request.Request(
+        f"https://api.github.com/app-manifests/{urllib.parse.quote(code)}/conversions",
+        method="POST",
+        headers={"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
+    )
+    with urllib.request.urlopen(req) as resp:
+        return json.load(resp)
+
+
+def save(app, out):
+    os.makedirs(out, mode=0o700, exist_ok=False)
+    key = os.path.join(out, "private-key.pem")
+    fd = os.open(key, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(app["pem"])
+    info = {"id": app["id"], "slug": app["slug"], "owner": app["owner"]["login"], "html_url": app["html_url"]}
+    with open(os.path.join(out, "app.json"), "w") as f:
+        json.dump(info, f, indent=2)
+        f.write("\n")
+    return key
+
+
+def main():
+    p = argparse.ArgumentParser(description="Create a GitHub App for one agent role.")
+    p.add_argument("name", help="the App's name; unique across GitHub, e.g. myteam-worker")
+    p.add_argument("--org", help="create it in this organization instead of your account")
+    p.add_argument("--out", help="where to save it (default ~/.config/machinesdancing/github-apps/<slug>)")
+    args = p.parse_args()
+
+    if args.out and os.path.exists(args.out):
+        sys.exit(f"create-github-app: {args.out} exists; not overwriting it")
+
+    code = wait_for_code(args.name, args.org)
+    try:
+        app = convert(code)
+    except urllib.error.HTTPError as e:
+        sys.exit(f"create-github-app: GitHub refused the conversion: {e.code} {e.read().decode(errors='replace')}")
+
+    out = args.out or os.path.expanduser(f"~/.config/machinesdancing/github-apps/{app['slug']}")
+    try:
+        key = save(app, out)
+    except FileExistsError:
+        sys.exit(f"create-github-app: {out} exists; the App was created but its key is not saved. "
+                 f"Generate a new key on {app['html_url']}")
+
+    install = f"https://github.com/apps/{app['slug']}/installations/new"
+    print(f"Created {app['slug']} (id {app['id']}). Key: {key}", file=sys.stderr)
+    print(f"Opening {install}: install it on the repos its role works on, and only those.", file=sys.stderr)
+    subprocess.run(["open", install], check=False)
+
+
+if __name__ == "__main__":
+    main()
