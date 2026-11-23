@@ -46,6 +46,7 @@
     content: |
       d /run/barre 0755 root root -
       d /run/barre/policies 0750 root barre -
+      d /run/barre/credentials 0750 root barre -
     owner: root
     group: root
     mode: "0644"
@@ -55,6 +56,23 @@
   ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/barre.conf
   when: barre_tmpfiles.changed
   changed_when: true
+
+# The certificate authority for names whose rule gives a credential
+# (docs/design/barre.md, G2): made once, its key readable by root and barre
+# only. The guest image trusts ca.crt; making a new one means rebuilding it.
+- name: Create barre's configuration directory
+  ansible.builtin.file:
+    path: /etc/barre
+    state: directory
+    owner: root
+    group: barre
+    mode: "0750"
+
+- name: Make barre's certificate authority
+  ansible.builtin.command: /usr/local/bin/barre ca init
+  args:
+    creates: /etc/barre/ca.key
+  notify: Restart barre
 
 - name: Install the barre service
   ansible.builtin.template:

@@ -39,14 +39,15 @@ name = "example"
 
 [roles.worker]
 github_app = "example-worker"        # a credential name, not a value
-allow = ["api.anthropic.com", "github.com", "api.github.com"]   # barre rules
+allow = ["api.anthropic.com@claude", "github.com@github-git", "api.github.com@github-api"]   # barre rules
 
 [[repos]]
 url = "https://github.com/example-org/example"
 roles = ["worker"]
 ```
 
-- `roles.<name>.allow` is a list of barre rules, in barre's syntax (`name[:ports]`).
+- `roles.<name>.allow` is a list of barre rules, in barre's syntax (`name[:ports][@credential]`):
+  `@credential` names a credential barre sets on that name's requests, which the host supplies.
 - `roles.<name>.github_app` names the GitHub App the role acts as.
 - `repos` lists the repos the instance works on, and which roles may work on each.
 
@@ -57,7 +58,7 @@ The format is a starting point and will change as we build; nothing reads it yet
 The instance names credentials; the host holds their values.
 
 - **Where:** files on hemlock under `/etc/machinesdancing/credentials/<name>/`, readable only by
-  root (and later by barre, for G2).
+  root. What the host mints from them goes to barre (`/run/barre/credentials`), never to the VM.
 - **Who puts them there:** the human, from outside both repos. Neither this repo nor the instance
   holds a secret. The `credentials` Ansible role makes the directory; for a GitHub App,
   `scripts/install-github-app SLUG` copies the key from the Mac, over ssh's stdin.

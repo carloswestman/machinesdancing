@@ -19,6 +19,8 @@
 #                  a version number (default: stable)
 #   GH_VERSION     GitHub CLI release to include: latest or a version number
 #                  (default: latest)
+#   BARRE_CA       barre's certificate authority, for the guest to trust
+#                  (default: /etc/barre/ca.crt; the build stops without it)
 
 set -euo pipefail
 
@@ -31,6 +33,7 @@ claude_version=${CLAUDE_CODE_VERSION:-stable}
 claude_releases=https://downloads.claude.ai/claude-code-releases
 gh_version=${GH_VERSION:-latest}
 gh_releases=https://github.com/cli/cli/releases
+barre_ca=${BARRE_CA:-/etc/barre/ca.crt}
 
 # systemd as init, udev for /dev, CA certificates for TLS, curl for HTTP
 # (agents need it, and the gateway's tests use it), git for the repos agents
@@ -41,6 +44,13 @@ here=$(cd "$(dirname "$0")" && pwd)
 
 if [[ $EUID -ne 0 ]]; then
   echo "build: must run as root" >&2
+  exit 1
+fi
+# barre sets credentials on requests to some names by terminating their TLS
+# with its own authority's certificates (docs/design/barre.md, G2); the guest
+# trusts it, and programs in it hold no credentials.
+if [[ ! -r $barre_ca ]]; then
+  echo "build: no $barre_ca; install barre first (scripts/install-barre), which makes it" >&2
   exit 1
 fi
 if [[ ! -x $here/jete-agent ]]; then
@@ -96,6 +106,8 @@ mmdebstrap \
   --customize-hook="copy-in '$here/jete-agent' /usr/local/bin" \
   --customize-hook="copy-in '$work/claude' /usr/local/bin" \
   --customize-hook="copy-in '$work/gh' /usr/local/lib" \
+  --customize-hook="upload '$barre_ca' /usr/local/share/ca-certificates/barre.crt" \
+  --customize-hook='chroot "$1" update-ca-certificates' \
   --customize-hook='chroot "$1" systemctl enable jete-agent.service' \
   --customize-hook='chroot "$1" useradd --create-home --shell /bin/bash agent' \
   --customize-hook='chroot "$1" passwd --lock root' \
@@ -105,6 +117,7 @@ mmdebstrap \
 echo "jete-agent sha256:$(sha256sum "$here/jete-agent" | cut -d' ' -f1)" >> "$work/$name.manifest"
 echo "claude-code $claude_version sha256:$claude_sum" >> "$work/$name.manifest"
 echo "gh $gh_version sha256:$gh_sum" >> "$work/$name.manifest"
+echo "barre-ca sha256:$(sha256sum "$barre_ca" | cut -d' ' -f1)" >> "$work/$name.manifest"
 
 # The guest kernel configures the network from jete's boot line (ip=...) and
 # writes the resolver it was given to /proc/net/pnp, in resolv.conf format.

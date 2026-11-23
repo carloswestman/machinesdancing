@@ -1,5 +1,5 @@
-# git reaches GitHub with the token the host keeps fresh in
-# /run/agent/github-token; the agent holds no other credential
-# (docs/design/repo-access.md).
+# git reaches GitHub with a placeholder credential; barre sets the real one on
+# every request to github.com, so the agent holds none
+# (docs/design/barre.md, G2).
 [credential "https://github.com"]
 	helper = /usr/local/lib/machinesdancing/git-credential-github
