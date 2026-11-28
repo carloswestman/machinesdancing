@@ -21,8 +21,9 @@ use to talk to each other on stage, where a gesture outside it means nothing.
 
 **Does not**
 
-- Run agents, or put messages into a running agent program. The *runner* does that: whoever starts
-  the agent, `claude-vm` now and regisseur later (see [Delivery](#delivery)).
+- Run agents, or put messages into a running agent program. The *runner* does that, through each
+  program's harness adapter ([architecture.md](../architecture.md#harnesses-plug-and-play)), for
+  regisseur; `claude-vm` does it by hand today (see [Delivery](#delivery)).
 - Know about roles, tickets or workflows. It's told, per VM, which endpoint the VM is and which
   channels and schemas apply, the way barre is told a VM's rules.
 - Read jete's state, or depend on any agent program.
@@ -36,7 +37,7 @@ use to talk to each other on stage, where a gesture outside it means nothing.
 | The agent's side | A CLI, `mime`, in the guest image, with a skill that teaches it. Not an MCP server. |
 | Transport from the VM | vsock, guest to host, port 1025 (jete-agent has 1024). |
 | Identity | The per-VM socket the connection arrives on. A process in the VM can't name its sender. |
-| Configuration | Per VM, given by the runner at boot from the instance (`mime attach`), like barre's rules. mime reads no instance itself. |
+| Configuration | Per VM, given at boot from the instance (`mime attach`) by whoever sets the VM up, `claude-vm` now and regisseur later, like barre's rules. mime reads no instance itself. |
 | Schemas | JSON Schema, one per message type, in the instance. |
 | Delivery into the agent | The runner's job. Between turns, by continuing the agent's session, for every program; optionally, for a program that has one, a live input channel. |
 | jete-agent | Unchanged. It stays jete's channel for running commands. |
@@ -78,11 +79,13 @@ flowchart LR
     end
     subgraph host[hemlock]
         bus[mime serve<br/>channels, schemas, inboxes, record]
-        runner[runner<br/>claude-vm, later regisseur]
+        setup[claude-vm, later regisseur<br/>sets the VM up]
+        runner[runner<br/>for regisseur; claude-vm today]
         human([Human: mime on the host])
     end
     cli -- vsock 1025 --> bus
-    runner -- attach, detach, inbox --> bus
+    setup -- attach, detach --> bus
+    runner -- inbox --> bus
     human -- send, read, log --> bus
     runner -- jete exec: start, continue --> ja
     ja -- runs --> agent
@@ -95,7 +98,7 @@ port P arrives at that socket's path with `_P` appended (`v.sock_1025`). Only th
 Firecracker can connect there, so a connection on it comes from that VM, whatever the message says.
 
 The jail is readable by the VM's own user alone (mode 0700), so `mime serve`, under its own user,
-can't make the socket itself. `mime attach`, run as root by the runner, makes it, gives it to the
+can't make the socket itself. `mime attach`, run as root when the VM is set up, makes it, gives it to the
 VM's user, and passes the listening socket to `mime serve` over its Unix socket. mime serve never
 needs access to jete's jails. Any process in the VM can use it: identity is the
 VM, not the process, as with barre.
@@ -109,7 +112,7 @@ An endpoint is a sender or recipient: an agent (by its VM id, in a role), `human
 (regisseur, later). A channel allows message types from one kind of endpoint to another:
 
 ```toml
-# In instance.toml, given to mime per VM by the runner.
+# In instance.toml, given to mime per VM when it's set up.
 [mime.types]
 question = "mime/question.json"            # JSON Schema files, in the instance repo
 answer = "mime/answer.json"
@@ -164,8 +167,8 @@ send it, then end the turn (see [Delivery](#delivery)).
 On the host, the same binary talks to `mime serve` over a Unix socket that only root can use:
 
 ```bash
-sudo mime attach ID --as worker < channels.toml    # the runner, at boot: listen for the VM
-sudo mime detach ID                                # the runner, at removal; messages stay recorded
+sudo mime attach ID --as worker < channels.toml    # at boot: listen for the VM
+sudo mime detach ID                                # at removal; messages stay recorded
 sudo mime send answer --to ID <<<'{"text": "Merge them."}'    # the human
 sudo mime inbox --for human
 sudo mime log --follow                             # everything, as it happens
@@ -192,6 +195,11 @@ VM on hemlock:
 Within a turn, an agent can also look itself: `mime inbox` at natural points, or `mime wait` in the
 background, which some programs report back to the agent when it returns.
 
+The first prompt is a message too: regisseur sends a new agent a `task` from `system`, pointing at
+its ticket, and the runner starts the session with it, as it continues the session with every
+later message ([architecture.md](../architecture.md#how-a-ticket-becomes-an-agent)). Until
+regisseur, `claude-vm` passes the prompt it's given.
+
 A question works the same in every program: the agent sends it and ends its turn, saying it's
 waiting. The runner sees an open question and no answer, and waits; the answer arrives, and the
 runner continues the session with it. Nothing interrupts a turn, and nothing is lost while the
@@ -201,8 +209,10 @@ Stopping an agent is the same for every program: the runner ends its `jete exec`
 jete-agent kills the program's whole process group. jete's protocol also carries signals (TERM,
 INT), for a gentler stop, once the runner needs one.
 
-Each program the harness supports gets two command templates, start and continue, kept in this repo
-since they're facts about the program, not about a team. A role names its program in the instance.
+Each program gets its start and continue commands, and the rest of what the runner needs to know
+about it, in a harness adapter, kept in this repo since they're facts about the program, not about a
+team ([architecture.md](../architecture.md#harnesses-plug-and-play)). A role names its harness in
+the instance.
 
 ## Storage
 
@@ -240,5 +250,5 @@ guest image; `claude-vm` attaching the VM, delivering between turns and waiting 
    returned to the sender. Depends on how regisseur hands work over.
 5. **Storage.** Plain files are enough for one host and a few agents. SQLite, if queries over the
    record or many inboxes need it.
-6. **The skill's home.** In the guest image until the skills disk exists (step 8 of the
+6. **The skill's home.** In the guest image until the skills disk exists (step 9 of the
    [build order](../build-order.md)).
