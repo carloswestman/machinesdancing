@@ -103,6 +103,22 @@ VM's user, and passes the listening socket to `mime serve` over its Unix socket.
 needs access to jete's jails. Any process in the VM can use it: identity is the
 VM, not the process, as with barre.
 
+Checked on hemlock, with Python stand-ins for both sides, in a VM booted by `barre-vm run`:
+
+- **Guest to host works through the jailer.** A connection to CID 2, port 1025, from the
+  unprivileged `agent` user, arrives at `<jail>/root/v.sock_1025`. Each guest connection is its own
+  host connection; three in a row each got their own reply.
+- **The socket must be the VM's user's.** Owned by root (0755), the guest's connection is reset at
+  once and nothing reaches the listener: Firecracker, running as the VM's user, can't connect.
+  Owned by the VM's user (0600), it works.
+- **Failing is quick.** With nothing listening, or the socket removed while the VM runs, the guest
+  gets `ECONNRESET` within milliseconds, not a hang; the CLI can say the VM isn't attached.
+- **The handoff works.** Root bound the socket and passed the listening descriptor (`SCM_RIGHTS`)
+  to a process running as `nobody`, which couldn't open the jail; it accepted the guest's
+  connections. Root kept nothing open.
+- **Identity is the VM, not the process.** Root in the guest arrives the same way as `agent`.
+- **jete is unaffected.** `jete rm` removes a jail holding the socket like any other.
+
 jete exposes where a VM's vsock is (principle 2: it serves bytes, it doesn't read them), so mime
 doesn't hard-code jete's jail layout.
 
