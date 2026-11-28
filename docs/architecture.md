@@ -33,23 +33,30 @@ flowchart LR
     end
 
     subgraph host[Host: hemlock]
+        view[Web app<br/>the human's view: agents, messages, connections]
         cp[regisseur<br/>control plane: workflows, roles, connectors]
+        runner[Runner<br/>runs agent programs, through harness adapters]
         bus[mime<br/>agent message bus: channels, schemas, record]
         gw[barre<br/>egress gateway: allowlist, credentials, log]
         jete[jete<br/>µVM manager]
         subgraph vm1[µVM: planner]
-            a1[Agent program<br/>Claude Code] --- s1[mime MCP server]
+            a1[Agent program<br/>Claude Code] --- s1[mime CLI]
             j1[jete-agent]
         end
         subgraph vm2[µVM: worker]
-            a2[Agent program<br/>Claude Code] --- s2[mime MCP server]
+            a2[Agent program<br/>Claude Code] --- s2[mime CLI]
             j2[jete-agent]
         end
     end
 
     human -- direction, reviews, merges --> ext
-    human -. watches .-> bus
-    cp -- create, exec, destroy --> jete
+    human -- watches, answers --> view
+    view -. reads .-> bus & cp & gw & jete
+    view -- sends as the human --> bus
+    cp -- create, destroy --> jete
+    cp -- start, stop --> runner
+    runner -- exec: start, continue --> jete
+    runner -- inbox --> bus
     jete -- boots --> vm1 & vm2
     jete -. exec, vsock .-> j1 & j2
     s1 & s2 -- vsock --> bus
@@ -63,7 +70,7 @@ flowchart LR
     classDef built fill:#d1fae5,stroke:#059669,color:#064e3b
     classDef planned fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:5 5,color:#6b7280
     class jete,gw,a1,a2,j1,j2 built
-    class cp,bus,s1,s2 planned
+    class cp,bus,s1,s2,runner,view planned
 ```
 
 Green: built. Grey, dashed: designed, not built yet.
@@ -81,8 +88,10 @@ Each tool does one job, is usable on its own and knows nothing about the layers 
 |---|---|---|---|
 | **jete** | Runs VMs: images, isolation, disks (including extra read-only ones), a vsock channel per VM, and a network link that reaches only the addresses it's given. | Agents, messages, roles, workflows, GitHub. | M1 and M2 done, with the egress proxy: [jete.md](design/jete.md). |
 | **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | G1 (by name) done: [barre.md](design/barre.md). |
-| **Agent message bus** (mime) | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Not designed. |
-| **Control plane** (regisseur) | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
+| **Agent message bus** (mime) | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Designed: [mime.md](design/mime.md). |
+| **Runner** | Runs an agent program in a VM, through the program's harness adapter: starts its session with its first message, continues it with the next, stops it. See [Harnesses](#harnesses-plug-and-play). | Tickets, roles, workflows. It's told which VM, which harness and when. | `claude-vm` does it by hand, for Claude Code. |
+| **Control plane** (regisseur) | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. See [How a ticket becomes an agent](#how-a-ticket-becomes-an-agent). | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
+| **Web app** | The human's view: the agents running, their messages as they happen, their connections and refusals, their pull requests. Answering an agent, as the human. See [The human's view](#the-humans-view). | Everything below it except their interfaces. Nothing depends on it. | Not designed. |
 
 The bus and the control plane are named from ballet, like jete and barre. The bus is mime (see
 [The bus](#the-bus)). The control plane is regisseur: in a ballet company, the régisseur runs the
@@ -177,25 +186,98 @@ work repo, with Jira as a possible mirror.
 | Boundary | Mechanism | Why |
 |---|---|---|
 | Host to VM, control | vsock, port 1024: `jete-agent` runs commands (jete's own channel). The control plane uses it for workflow actions in an agent's workspace. | Needs no network. Only the host can connect. |
-| Agent to bus | vsock, its own port. Inside the VM, a small **bus shim** presents the bus to the agent program as an **MCP server** (tools such as "send a message", "read my inbox", "update my ticket"). | The host knows which VM a vsock connection comes from, so the bus knows the sender's identity without trusting anything the agent says (principle 7). MCP is what agent programs already speak. |
+| Agent to bus | vsock, port 1025. Inside the VM, the agent runs a CLI, `mime` (send a message, read its inbox, list what it may send), taught by a skill. Messages reach a running agent through its runner, between turns ([mime.md](design/mime.md#delivery)). | The host knows which VM a vsock connection comes from, so the bus knows the sender's identity without trusting anything the agent says (principle 7). Every agent program can run a command; nothing runs in the VM between messages. |
 | VM to outside | A network link (jete's tap device) whose traffic jete hands, all of it, to the gateway's port. jete owns isolation, the gateway owns the policy; neither reads the other's state ([barre.md](design/barre.md#who-owns-what)). No proxy settings in the guest. | Enforced by the firewall, so an agent that ignores proxy settings still can't get around it (principle 1). |
 | System to external systems | Connectors, with credentials held by the control plane and the gateway, never by agents. Branch protection keeps merges for the human. | Principles 7, 8. |
 | Configuration | Files in the instance config repo, read by the control plane. | Declarative (principle 15). |
 
-## Agent programs are interchangeable
+## How a ticket becomes an agent
+
+regisseur does the orchestration; each step is an action on a tool, through its interface
+(principle 13). Spawning isn't a message: no agent can start another. A planner can *propose* a
+ticket with a message to `system`, and a rule decides what becomes of it (principle 7).
+
+The work itself is a message. regisseur sends the new agent a `task` from `system`, pointing at the
+ticket, and the runner starts the agent's session with it. So the first prompt and every later one
+reach the agent the same way, and the assignment is in the record like everything else
+(principle 9).
+
+```mermaid
+sequenceDiagram
+    participant W as Work repo
+    participant R as regisseur
+    participant T as jete, barre, mime
+    participant U as Runner
+    participant A as Agent (in its VM)
+    W->>R: ticket queued
+    R->>R: rule: which role, which repo
+    R->>T: VM, egress rules and credentials, channels
+    R->>T: mime: task, system → agent, refs the ticket
+    R->>U: start the agent (VM, harness)
+    U->>A: start a session with its inbox
+    A->>T: mime: question, progress, ready-for-review
+    T-->>R: events from the bus
+    R->>U: continue with new messages (an answer, a conflict)
+    U->>A: continue the session
+    R->>T: on merge: stop, revoke, remove
+```
+
+| Step | Who | Through |
+|---|---|---|
+| A ticket is queued | the human, or a planner's proposal accepted by a rule | the work repo |
+| The role and repo are chosen | regisseur's rules | the instance |
+| The VM boots, its egress set, its credentials minted | regisseur | jete, barre (today `claude-vm` and `barre-vm`) |
+| Its channels are set; the task is sent | regisseur | mime: `attach`, then a `task` message |
+| The agent starts, and continues as messages arrive | the runner, for regisseur | jete exec, mime inbox |
+| The work moves through its states | regisseur's rules, on bus and GitHub events | mime, the connectors |
+| The agent is destroyed with its access | regisseur | runner, mime, barre, jete |
+
+## Harnesses: plug and play
 
 The harness doesn't depend on which agent program runs in a VM: Claude Code, OpenCode, or
 something else. An agent program only has to:
 
 - run on Linux inside the guest image;
-- use MCP tools (for the bus);
+- run commands (`mime`, for the bus, as for `git` and `gh`);
+- start a session from a prompt, and continue it with another (how the bus's messages reach it);
 - read skills (or be pointed at them);
 - reach its model over HTTPS (through the gateway, like everything else).
 
-Which program a role uses is configuration: the image it boots and the command that starts it.
+There's one runner, not one per program. What differs between programs is a **harness adapter**: a
+file in this repo, `harnesses/<name>.toml`, with the facts about that program:
+
+| | Claude Code, for example |
+|---|---|
+| Start | `claude -p --output-format json PROMPT`, and where the session's id is in its output |
+| Continue | `claude -p --output-format json --resume SESSION PROMPT` |
+| Live input (optional) | `--input-format stream-json`, for messages during a run |
+| Environment | the placeholder token, `NODE_EXTRA_CA_CERTS` for barre's authority |
+| Credentials | which names barre sets which credential on (`api.anthropic.com@claude`) |
+| Skills | where the program reads them (`~/.claude/skills`) |
+| Image | that the guest image has the program (`scripts/build-rootfs` adds it) |
+
+A role names its harness in the instance (`harness = "opencode"`); the rest is the same. Adding a
+program means an adapter file and the program in the image, no change to the runner, regisseur or
+mime. So `claude-vm` and an `opencode-vm` aren't two engines: they're the runner with two adapters.
+If a program ever needs more than a file can say, its adapter can become code behind the same
+interface; files first.
+
 Credentials for the model API are, ideally, added by the gateway, so the agent never holds a key it
 could leak. Where a program insists on a local credential, that role gets the narrowest one
 available, and the gateway still limits where it can be used.
+
+## The human's view
+
+A web app, on the host, for the human (principle 16). A tool of its own, above the rest: it reads
+each tool through its interface, and nothing depends on it, so the system runs without it.
+
+- **Shows** the agents running (jete, regisseur): role, ticket, state, how long. Their messages,
+  live, from mime's record. Their connections and refusals, from barre's log. Their pull requests.
+- **Acts, narrowly:** answer an agent's question, sent as `human` through mime like any message,
+  checked and recorded the same way; ask regisseur to stop an agent. Nothing else. Merges and
+  approvals stay where they are, on GitHub (principle 8).
+- **Reached** over the tailnet only, as the human. Anyone who reaches it acts as the human, so
+  access to it is as sensitive as the human's GitHub account.
 
 ## The egress gateway
 
@@ -253,8 +335,8 @@ checks it.
    committed.
 5. **One host or many.** Everything above runs on hemlock. Nothing prevents more hosts later, but
    nothing plans for them yet.
-6. **The human's view.** How the record of messages and decisions is shown (principle 16): the code
-   host alone, or a dashboard.
+6. **The web app's stack.** Settled that there is one ([The human's view](#the-humans-view)); what
+   it's built with, and how it gets live updates from each tool, comes with its design.
 7. **regisseur's workflow engine.** Our own, or built on Temporal. Temporal gives durable,
    long-running workflows (restarts, retries, timers, waiting on people), which the work lifecycle
    needs. Against it: rules are configuration here and Temporal workflows are code, so regisseur
@@ -262,3 +344,22 @@ checks it.
    where each workflow has got to; it's a server and a database to run on hemlock; and its Rust
    support needs checking. *Before* rules stay in mime either way: they sit on the message's path.
    To try at step 7 of the build order, with the four example rules above.
+8. **Budgets.** Nothing limits an agent's tokens, turns or hours yet, so an agent stuck in a loop
+   spends the model account until someone notices. The runner or regisseur needs a limit per task,
+   set by role; barre's log already counts requests to the model's name, which can check it.
+   Needed before agents start without a human watching (step 7).
+9. **Waiting costs a running VM.** An agent waiting hours for an answer keeps its VM, and its
+   memory, running. Acceptable for a few agents. Beyond that: pause or snapshot the VM while it
+   waits (jete's snapshots, step 9), or have the agent push its branch and end, then start a new
+   VM from the branch and the saved session when the answer comes.
+10. **How many agents at once.** hemlock's memory and CPUs set a limit, and 512 MiB per VM is
+    already tight for Claude Code. regisseur needs a concurrency limit, and a queue for tickets
+    waiting for a slot.
+11. **Injection through content.** Channels decide which types may flow, not what a message or a
+    ticket says. Another agent's message, a ticket, or a file in a repo can try to talk an agent
+    into misusing its own access, within its rules. That's contained by what doesn't depend on the
+    agent: its egress rules, credentials scoped to its repos, and merges kept for the human
+    (principles 1, 8). Channels limit who can reach an agent, not what it can be told.
+12. **More than one human.** The design has one `human` endpoint. A team needs to know whose answer
+    a message is and who may approve what (principle 8). Not needed now; `human` shouldn't be
+    assumed to be one person in what we build.
