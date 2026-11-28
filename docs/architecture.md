@@ -344,3 +344,22 @@ checks it.
    where each workflow has got to; it's a server and a database to run on hemlock; and its Rust
    support needs checking. *Before* rules stay in mime either way: they sit on the message's path.
    To try at step 7 of the build order, with the four example rules above.
+8. **Budgets.** Nothing limits an agent's tokens, turns or hours yet, so an agent stuck in a loop
+   spends the model account until someone notices. The runner or regisseur needs a limit per task,
+   set by role; barre's log already counts requests to the model's name, which can check it.
+   Needed before agents start without a human watching (step 7).
+9. **Waiting costs a running VM.** An agent waiting hours for an answer keeps its VM, and its
+   memory, running. Acceptable for a few agents. Beyond that: pause or snapshot the VM while it
+   waits (jete's snapshots, step 9), or have the agent push its branch and end, then start a new
+   VM from the branch and the saved session when the answer comes.
+10. **How many agents at once.** hemlock's memory and CPUs set a limit, and 512 MiB per VM is
+    already tight for Claude Code. regisseur needs a concurrency limit, and a queue for tickets
+    waiting for a slot.
+11. **Injection through content.** Channels decide which types may flow, not what a message or a
+    ticket says. Another agent's message, a ticket, or a file in a repo can try to talk an agent
+    into misusing its own access, within its rules. That's contained by what doesn't depend on the
+    agent: its egress rules, credentials scoped to its repos, and merges kept for the human
+    (principles 1, 8). Channels limit who can reach an agent, not what it can be told.
+12. **More than one human.** The design has one `human` endpoint. A team needs to know whose answer
+    a message is and who may approve what (principle 8). Not needed now; `human` shouldn't be
+    assumed to be one person in what we build.

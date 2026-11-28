@@ -252,3 +252,6 @@ guest image; `claude-vm` attaching the VM, delivering between turns and waiting 
    record or many inboxes need it.
 6. **The skill's home.** In the guest image until the skills disk exists (step 9 of the
    [build order](../build-order.md)).
+7. **Schema versions.** Message types change in the instance, while the record keeps messages made
+   under older schemas. Whether each message records its schema's version (or hash), and how
+   rules and the web app read old ones.
