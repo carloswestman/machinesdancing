@@ -15,7 +15,7 @@ harness can work on other repos later ([instances.md](design/instances.md)).
 | 3. One agent in a µVM | An agent program (Claude Code or OpenCode) in a guest image, reaching its model through barre, doing a task started by hand. | Done: Claude Code in the guest image, behind barre ([claude-code.md](guides/claude-code.md)). |
 | 4. Repo access | The agent works with git and `gh` as a developer does, on the repos its instance names, as a GitHub App for its role: [repo-access.md](design/repo-access.md), configured by the instance: [instances.md](design/instances.md). | Done: the first ticket became #29, opened by the agent and merged by the human ([milestone](design/repo-access.md#milestone)). |
 | 5. barre G2: Credentials | barre adds the GitHub and model credentials on the way out, so the µVM holds no secret at all. | Done: the Claude and GitHub tokens are set by barre; a ticket became #35 with neither in the µVM ([milestone](design/barre.md#milestones)). |
-| 6. Bus (mime) | The shim and the host bus, with channels and schemas from configuration. | Not started. |
+| 6. Bus (mime) | The `mime` CLI in the µVM and the host bus, with channels and schemas from configuration; messages delivered to the agent between turns. | Designed: [mime.md](design/mime.md). |
 | 7. Control plane (regisseur) | The work repo, the workflow engine with its first rules, the GitHub connector, spawning on tickets. The first slice that runs without a human starting it. | Not started. |
 | 8. Widening | More rules, the Jira connector, a skills disk, jete's daemon and speed (snapshots, a warm pool) when spawning on demand needs them. | Not started. |
 

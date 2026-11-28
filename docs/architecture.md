@@ -38,11 +38,11 @@ flowchart LR
         gw[barre<br/>egress gateway: allowlist, credentials, log]
         jete[jete<br/>µVM manager]
         subgraph vm1[µVM: planner]
-            a1[Agent program<br/>Claude Code] --- s1[mime MCP server]
+            a1[Agent program<br/>Claude Code] --- s1[mime CLI]
             j1[jete-agent]
         end
         subgraph vm2[µVM: worker]
-            a2[Agent program<br/>Claude Code] --- s2[mime MCP server]
+            a2[Agent program<br/>Claude Code] --- s2[mime CLI]
             j2[jete-agent]
         end
     end
@@ -81,7 +81,7 @@ Each tool does one job, is usable on its own and knows nothing about the layers 
 |---|---|---|---|
 | **jete** | Runs VMs: images, isolation, disks (including extra read-only ones), a vsock channel per VM, and a network link that reaches only the addresses it's given. | Agents, messages, roles, workflows, GitHub. | M1 and M2 done, with the egress proxy: [jete.md](design/jete.md). |
 | **Egress gateway** (barre) | Every connection a VM makes to the outside world: checks the destination's name and port against the VM's allowlist, adds credentials to approved requests, logs every request. | VMs' internals, agents, messages. It sees connections and a policy per source. | G1 (by name) done: [barre.md](design/barre.md). |
-| **Agent message bus** (mime) | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Not designed. |
+| **Agent message bus** (mime) | Every message between agents, and between agents and the system: delivers it only over a declared channel, checks it against its schema and rules, rejects it with a reason, records it. | VMs, networking, workflows. It sees authenticated senders and typed messages. | Designed: [mime.md](design/mime.md). |
 | **Control plane** (regisseur) | Composes the others: roles, the work lifecycle, the workflow engine (events, rules, actions), connectors to external systems, spawning and destroying agents. | How VMs, connections or messages are implemented: it uses each tool through its interface. | Not designed. |
 
 The bus and the control plane are named from ballet, like jete and barre. The bus is mime (see
@@ -177,7 +177,7 @@ work repo, with Jira as a possible mirror.
 | Boundary | Mechanism | Why |
 |---|---|---|
 | Host to VM, control | vsock, port 1024: `jete-agent` runs commands (jete's own channel). The control plane uses it for workflow actions in an agent's workspace. | Needs no network. Only the host can connect. |
-| Agent to bus | vsock, its own port. Inside the VM, a small **bus shim** presents the bus to the agent program as an **MCP server** (tools such as "send a message", "read my inbox", "update my ticket"). | The host knows which VM a vsock connection comes from, so the bus knows the sender's identity without trusting anything the agent says (principle 7). MCP is what agent programs already speak. |
+| Agent to bus | vsock, port 1025. Inside the VM, the agent runs a CLI, `mime` (send a message, read its inbox, list what it may send), taught by a skill. Messages reach a running agent through its runner, between turns ([mime.md](design/mime.md#delivery)). | The host knows which VM a vsock connection comes from, so the bus knows the sender's identity without trusting anything the agent says (principle 7). Every agent program can run a command; nothing runs in the VM between messages. |
 | VM to outside | A network link (jete's tap device) whose traffic jete hands, all of it, to the gateway's port. jete owns isolation, the gateway owns the policy; neither reads the other's state ([barre.md](design/barre.md#who-owns-what)). No proxy settings in the guest. | Enforced by the firewall, so an agent that ignores proxy settings still can't get around it (principle 1). |
 | System to external systems | Connectors, with credentials held by the control plane and the gateway, never by agents. Branch protection keeps merges for the human. | Principles 7, 8. |
 | Configuration | Files in the instance config repo, read by the control plane. | Declarative (principle 15). |
@@ -188,7 +188,8 @@ The harness doesn't depend on which agent program runs in a VM: Claude Code, Ope
 something else. An agent program only has to:
 
 - run on Linux inside the guest image;
-- use MCP tools (for the bus);
+- run commands (`mime`, for the bus, as for `git` and `gh`);
+- start a session from a prompt, and continue it with another (how the bus's messages reach it);
 - read skills (or be pointed at them);
 - reach its model over HTTPS (through the gateway, like everything else).
 
